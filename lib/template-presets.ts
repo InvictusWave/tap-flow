@@ -191,8 +191,8 @@ export const TEMPLATE_PRESETS: CustomTemplateData[] = [
       { id: 'card-reviews', type: 'text', content: 'GOOGLE REVIEWS', x: 20, y: 180, width: 300, height: 25, zIndex: 2, fontSize: 17, fontWeight: '700', textAlign: 'center', color: '#ffffff', fontFamily: 'Outfit', letterSpacing: 2 },
       { id: 'card-stars', type: 'stars', x: 100, y: 215, width: 140, height: 25, zIndex: 2, starCount: 5, starFilled: true, starColor: '#FBBC05' },
       { id: 'card-qr', type: 'qr', x: 80, y: 270, width: 180, height: 180, zIndex: 2, borderRadius: 12, backgroundColor: '#ffffff' },
-      { id: 'card-scan-text', type: 'text', content: 'SCAN OR TAP', x: 20, y: 470, width: 300, height: 20, zIndex: 2, fontSize: 14, fontWeight: '700', textAlign: 'center', color: '#9ca3af', fontFamily: 'Outfit', letterSpacing: 2 },
-      { id: 'card-nfc', type: 'nfc_icon', iconVariant: 'nfc_badge', x: 155, y: 495, width: 30, height: 30, zIndex: 2, color: '#ffffff' },
+      { id: 'card-scan-text', type: 'text', content: 'SCAN OR TAP', x: 20, y: 465, width: 300, height: 20, zIndex: 2, fontSize: 13, fontWeight: '700', textAlign: 'center', color: '#9ca3af', fontFamily: 'Outfit', letterSpacing: 2 },
+      { id: 'card-nfc', type: 'nfc_icon', iconVariant: 'hand_phone', x: 125, y: 485, width: 90, height: 50, zIndex: 2, color: '#ffffff' },
     ],
   },
   {

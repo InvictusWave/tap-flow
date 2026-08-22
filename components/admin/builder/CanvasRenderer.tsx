@@ -1,0 +1,907 @@
+'use client';
+
+import React, { useRef, useState, useEffect } from 'react';
+import QRCode from 'qrcode';
+import {
+  CustomTemplateData,
+  CanvasElement,
+} from '@/types/template-builder';
+
+interface Props {
+  template: CustomTemplateData;
+  scale?: number;
+  interactive?: boolean;
+  selectedElementId?: string | null;
+  selectedElementIds?: string[];
+  selectedIds?: string[];
+  showGrid?: boolean;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  onSelectElement?: (id: string | null, multi?: boolean) => void;
+  onSetSelectedIds?: React.Dispatch<React.SetStateAction<string[]>>;
+  onSelectMultipleElements?: (ids: string[]) => void;
+  onUpdateElement?: (id: string, updates: Partial<CanvasElement>) => void;
+  onUpdateMultipleElements?: (updates: { id: string; updates: Partial<CanvasElement> }[]) => void;
+  mockData?: {
+    businessName?: string;
+    location?: string;
+    slug?: string;
+    url?: string;
+    showBranding?: boolean;
+  };
+  transparentBackground?: boolean;
+}
+
+interface SmartGuide {
+  type: 'v' | 'h';
+  pos: number;
+  label?: string;
+}
+
+export default function CanvasRenderer({
+  template,
+  scale = 1,
+  interactive = true,
+  selectedElementId = null,
+  selectedElementIds = [],
+  selectedIds = [],
+  showGrid = true,
+  snapToGrid = true,
+  gridSize = 20,
+  onSelectElement,
+  onSetSelectedIds,
+  onSelectMultipleElements,
+  onUpdateElement,
+  onUpdateMultipleElements,
+  mockData = {
+    businessName: 'Kopi Kenangan',
+    location: 'Senopati, Jakarta Selatan',
+    slug: 'demo-card',
+    showBranding: true,
+  },
+  transparentBackground = false,
+}: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  const targetUrl = mockData.url || `https://tapflow.id/c/${mockData.slug || 'demo-card'}`;
+
+  // Combined selected IDs array
+  const activeSelectedIds = selectedIds.length > 0
+    ? selectedIds
+    : (selectedElementIds.length > 0 ? selectedElementIds : (selectedElementId ? [selectedElementId] : []));
+
+  // Active Smart Guides (Lines shown during drag)
+  const [activeGuides, setActiveGuides] = useState<SmartGuide[]>([]);
+
+  // Generate QR Code data URL dynamically
+  useEffect(() => {
+    let isMounted = true;
+    QRCode.toDataURL(targetUrl, {
+      width: 256,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then((dataUri) => {
+        if (isMounted) setQrDataUrl(dataUri);
+      })
+      .catch(console.error);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetUrl]);
+
+  // Replace dynamic template tokens with accurate branding & business name controls
+  const formatTextContent = (text?: string) => {
+    if (!text) return '';
+
+    const resolvedBusinessName =
+      mockData.businessName !== undefined
+        ? mockData.businessName
+        : (interactive ? 'Kopi Kenangan' : '');
+
+    const resolvedLocation =
+      mockData.location !== undefined
+        ? mockData.location
+        : (interactive ? 'Senopati, Jakarta Selatan' : '');
+
+    const resolvedSlug = mockData.slug || (interactive ? 'demo-card' : '');
+
+    const isBrandingEnabled =
+      mockData.showBranding !== undefined ? mockData.showBranding : (interactive ? true : false);
+
+    const resolvedBranding = isBrandingEnabled ? 'Powered by InvictusWave' : '';
+    const resolvedPoweredBy = isBrandingEnabled ? 'Powered by InvictusWave' : '';
+    const resolvedInvictus = isBrandingEnabled ? 'InvictusWave' : '';
+    const resolvedTagline = isBrandingEnabled ? 'TapFlow by InvictusWave' : '';
+
+    let formatted = text
+      .replace(/{{businessName}}/g, resolvedBusinessName)
+      .replace(/{{location}}/g, resolvedLocation)
+      .replace(/{{slug}}/g, resolvedSlug)
+      .replace(/{{url}}/g, targetUrl)
+      .replace(/{{branding}}/g, resolvedBranding)
+      .replace(/{{poweredBy}}/g, resolvedPoweredBy)
+      .replace(/{{invictus}}/g, resolvedInvictus)
+      .replace(/{{tagline}}/g, resolvedTagline);
+
+    if (!isBrandingEnabled) {
+      formatted = formatted
+        .replace(/powered by invictuswave/gi, '')
+        .replace(/tapflow by invictuswave/gi, '')
+        .replace(/invictuswave/gi, '')
+        .trim();
+    }
+
+    return formatted;
+  };
+
+  const canvasWidth = template.width || 500;
+  const canvasHeight = template.height || 500;
+  const borderRadius = template.aspect === 'vertical' ? 24 : 36;
+
+  // Dragging & Resizing & Marquee Selection state
+  const [activeDrag, setActiveDrag] = useState<{
+    primaryId: string;
+    startX: number;
+    startY: number;
+    initialPositions: { id: string; x: number; y: number; width: number; height: number }[];
+  } | null>(null);
+
+  const [activeResize, setActiveResize] = useState<{
+    id: string;
+    handle: string;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    initialW: number;
+    initialH: number;
+  } | null>(null);
+
+  // Marquee (Box Drag Selection) state
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    hasMoved: boolean;
+  } | null>(null);
+
+  // Helper to determine if element is selected
+  const isSelected = (id: string) => {
+    if (!interactive) return false;
+    return activeSelectedIds.includes(id);
+  };
+
+  // -------------------------------------------------------------
+  // Pointer down on element (Drag or Multi-Select)
+  // -------------------------------------------------------------
+  const handleElementPointerDown = (e: React.PointerEvent, el: CanvasElement) => {
+    if (!interactive) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+
+    const isMultiKey = e.shiftKey || e.metaKey || e.ctrlKey;
+
+    let nextSelectedIds: string[] = [];
+
+    if (isMultiKey) {
+      // Toggle selection in multi-select mode
+      if (activeSelectedIds.includes(el.id)) {
+        nextSelectedIds = activeSelectedIds.filter((id) => id !== el.id);
+      } else {
+        nextSelectedIds = [...activeSelectedIds, el.id];
+      }
+    } else {
+      // If already part of selected group, preserve selection to drag together
+      if (activeSelectedIds.includes(el.id) && activeSelectedIds.length > 1) {
+        nextSelectedIds = activeSelectedIds;
+      } else {
+        // Single element selection
+        nextSelectedIds = [el.id];
+      }
+    }
+
+    if (onSetSelectedIds) {
+      onSetSelectedIds(nextSelectedIds);
+    } else if (onSelectMultipleElements) {
+      onSelectMultipleElements(nextSelectedIds);
+    } else if (onSelectElement) {
+      onSelectElement(nextSelectedIds.length === 1 ? nextSelectedIds[0] : null, isMultiKey);
+    }
+
+    // Setup dragging for all items in the selection
+    const targetElements = template.elements.filter((elem) => nextSelectedIds.includes(elem.id));
+    const elementsToDrag = targetElements.length > 0 ? targetElements : [el];
+
+    setActiveDrag({
+      primaryId: el.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPositions: elementsToDrag.map((item) => ({
+        id: item.id,
+        x: item.x,
+        y: item.y,
+        width: item.width,
+        height: item.height,
+      })),
+    });
+  };
+
+  // -------------------------------------------------------------
+  // Pointer down on Resize Handle
+  // -------------------------------------------------------------
+  const handleResizePointerDown = (e: React.PointerEvent, el: CanvasElement, handle: string) => {
+    if (!interactive) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+
+    setActiveResize({
+      id: el.id,
+      handle,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: el.x,
+      initialY: el.y,
+      initialW: el.width,
+      initialH: el.height,
+    });
+  };
+
+  // -------------------------------------------------------------
+  // Pointer down on Canvas Background (Deselect or Marquee Start)
+  // -------------------------------------------------------------
+  const handleCanvasBackgroundPointerDown = (e: React.PointerEvent) => {
+    if (!interactive || !containerRef.current) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+
+    setMarqueeBox({
+      startX: x,
+      startY: y,
+      currentX: x,
+      currentY: y,
+      hasMoved: false,
+    });
+  };
+
+  // -------------------------------------------------------------
+  // Global Pointer Move
+  // -------------------------------------------------------------
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!interactive) return;
+
+    // 1. Resizing with Grid Snapping
+    if (activeResize && onUpdateElement) {
+      const dx = (e.clientX - activeResize.startX) / scale;
+      const dy = (e.clientY - activeResize.startY) / scale;
+      const { handle, initialX, initialY, initialW, initialH } = activeResize;
+
+      let newX = initialX;
+      let newY = initialY;
+      let newW = initialW;
+      let newH = initialH;
+
+      if (handle.includes('e')) newW = Math.max(10, initialW + dx);
+      if (handle.includes('s')) newH = Math.max(10, initialH + dy);
+      if (handle.includes('w')) {
+        const potentialW = initialW - dx;
+        if (potentialW >= 10) {
+          newW = potentialW;
+          newX = initialX + dx;
+        }
+      }
+      if (handle.includes('n')) {
+        const potentialH = initialH - dy;
+        if (potentialH >= 10) {
+          newH = potentialH;
+          newY = initialY + dy;
+        }
+      }
+
+      // Snap dimensions to grid if enabled
+      if (snapToGrid) {
+        newW = Math.round(newW / 5) * 5;
+        newH = Math.round(newH / 5) * 5;
+        newX = Math.round(newX / 5) * 5;
+        newY = Math.round(newY / 5) * 5;
+      }
+
+      onUpdateElement(activeResize.id, {
+        x: Math.round(newX),
+        y: Math.round(newY),
+        width: Math.round(newW),
+        height: Math.round(newH),
+      });
+      return;
+    }
+
+    // 2. Dragging Single or Multi Elements with Smart Magnet Guides
+    if (activeDrag) {
+      let dx = (e.clientX - activeDrag.startX) / scale;
+      let dy = (e.clientY - activeDrag.startY) / scale;
+
+      const primary = activeDrag.initialPositions.find((p) => p.id === activeDrag.primaryId) || activeDrag.initialPositions[0];
+      const targetPrimaryX = primary.x + dx;
+      const targetPrimaryY = primary.y + dy;
+
+      const newGuides: SmartGuide[] = [];
+
+      // Smart Alignment & Center Snap
+      if (snapToGrid) {
+        const canvasCenterX = canvasWidth / 2;
+        const canvasCenterY = canvasHeight / 2;
+        const primaryCenterX = targetPrimaryX + primary.width / 2;
+        const primaryCenterY = targetPrimaryY + primary.height / 2;
+
+        const SNAP_TOLERANCE = 5;
+
+        // Snap X Center to Canvas Center
+        if (Math.abs(primaryCenterX - canvasCenterX) < SNAP_TOLERANCE) {
+          const snappedX = canvasCenterX - primary.width / 2;
+          dx = snappedX - primary.x;
+          newGuides.push({ type: 'v', pos: canvasCenterX, label: 'Tengah Kanvas H' });
+        } else if (Math.abs(targetPrimaryX - 20) < SNAP_TOLERANCE) {
+          // Snap Left Margin (20px)
+          dx = 20 - primary.x;
+          newGuides.push({ type: 'v', pos: 20, label: 'Margin Kiri 20px' });
+        } else if (Math.abs(targetPrimaryX + primary.width - (canvasWidth - 20)) < SNAP_TOLERANCE) {
+          // Snap Right Margin
+          dx = canvasWidth - 20 - primary.width - primary.x;
+          newGuides.push({ type: 'v', pos: canvasWidth - 20, label: 'Margin Kanan 20px' });
+        }
+
+        // Snap Y Center to Canvas Center
+        if (Math.abs(primaryCenterY - canvasCenterY) < SNAP_TOLERANCE) {
+          const snappedY = canvasCenterY - primary.height / 2;
+          dy = snappedY - primary.y;
+          newGuides.push({ type: 'h', pos: canvasCenterY, label: 'Tengah Kanvas V' });
+        } else if (Math.abs(targetPrimaryY - 20) < SNAP_TOLERANCE) {
+          // Snap Top Margin
+          dy = 20 - primary.y;
+          newGuides.push({ type: 'h', pos: 20, label: 'Margin Atas 20px' });
+        } else if (Math.abs(targetPrimaryY + primary.height - (canvasHeight - 20)) < SNAP_TOLERANCE) {
+          // Snap Bottom Margin
+          dy = canvasHeight - 20 - primary.height - primary.y;
+          newGuides.push({ type: 'h', pos: canvasHeight - 20, label: 'Margin Bawah 20px' });
+        }
+
+        // Check alignment with other non-selected elements
+        const otherElements = template.elements.filter((el) => !activeSelectedIds.includes(el.id));
+        for (const other of otherElements) {
+          const otherCenterX = other.x + other.width / 2;
+          const otherCenterY = other.y + other.height / 2;
+          const otherRight = other.x + other.width;
+          const otherBottom = other.y + other.height;
+
+          // X Alignments
+          if (!newGuides.some((g) => g.type === 'v')) {
+            if (Math.abs(primaryCenterX - otherCenterX) < SNAP_TOLERANCE) {
+              dx = otherCenterX - primary.width / 2 - primary.x;
+              newGuides.push({ type: 'v', pos: otherCenterX, label: 'Tengah' });
+            } else if (Math.abs(targetPrimaryX - other.x) < SNAP_TOLERANCE) {
+              dx = other.x - primary.x;
+              newGuides.push({ type: 'v', pos: other.x, label: 'Kiri' });
+            } else if (Math.abs(targetPrimaryX + primary.width - otherRight) < SNAP_TOLERANCE) {
+              dx = otherRight - primary.width - primary.x;
+              newGuides.push({ type: 'v', pos: otherRight, label: 'Kanan' });
+            } else if (Math.abs(targetPrimaryX - otherRight) < SNAP_TOLERANCE) {
+              dx = otherRight - primary.x;
+              newGuides.push({ type: 'v', pos: otherRight, label: 'Kanan-Kiri' });
+            } else if (Math.abs(targetPrimaryX + primary.width - other.x) < SNAP_TOLERANCE) {
+              dx = other.x - primary.width - primary.x;
+              newGuides.push({ type: 'v', pos: other.x, label: 'Kiri-Kanan' });
+            }
+          }
+
+          // Y Alignments
+          if (!newGuides.some((g) => g.type === 'h')) {
+            if (Math.abs(primaryCenterY - otherCenterY) < SNAP_TOLERANCE) {
+              dy = otherCenterY - primary.height / 2 - primary.y;
+              newGuides.push({ type: 'h', pos: otherCenterY, label: 'Tengah' });
+            } else if (Math.abs(targetPrimaryY - other.y) < SNAP_TOLERANCE) {
+              dy = other.y - primary.y;
+              newGuides.push({ type: 'h', pos: other.y, label: 'Atas' });
+            } else if (Math.abs(targetPrimaryY + primary.height - otherBottom) < SNAP_TOLERANCE) {
+              dy = otherBottom - primary.height - primary.y;
+              newGuides.push({ type: 'h', pos: otherBottom, label: 'Bawah' });
+            } else if (Math.abs(targetPrimaryY - otherBottom) < SNAP_TOLERANCE) {
+              dy = otherBottom - primary.y;
+              newGuides.push({ type: 'h', pos: otherBottom, label: 'Bawah-Atas' });
+            } else if (Math.abs(targetPrimaryY + primary.height - other.y) < SNAP_TOLERANCE) {
+              dy = other.y - primary.height - primary.y;
+              newGuides.push({ type: 'h', pos: other.y, label: 'Atas-Bawah' });
+            }
+          }
+        }
+      }
+
+      setActiveGuides(newGuides);
+
+      if (activeDrag.initialPositions.length > 1 && onUpdateMultipleElements) {
+        const batchUpdates = activeDrag.initialPositions.map((item) => ({
+          id: item.id,
+          updates: {
+            x: Math.round(item.x + dx),
+            y: Math.round(item.y + dy),
+          },
+        }));
+        onUpdateMultipleElements(batchUpdates);
+      } else if (activeDrag.initialPositions.length === 1 && onUpdateElement) {
+        const single = activeDrag.initialPositions[0];
+        onUpdateElement(single.id, {
+          x: Math.round(single.x + dx),
+          y: Math.round(single.y + dy),
+        });
+      }
+      return;
+    }
+
+    // 3. Marquee Box Dragging (Lasso Multi-Select)
+    if (marqueeBox && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const curX = (e.clientX - rect.left) / scale;
+      const curY = (e.clientY - rect.top) / scale;
+
+      const dist = Math.hypot(curX - marqueeBox.startX, curY - marqueeBox.startY);
+      const hasMoved = dist > 3;
+
+      setMarqueeBox((prev) => (prev ? { ...prev, currentX: curX, currentY: curY, hasMoved } : null));
+
+      if (hasMoved) {
+        // Calculate intersection with elements
+        const mLeft = Math.min(marqueeBox.startX, curX);
+        const mTop = Math.min(marqueeBox.startY, curY);
+        const mRight = Math.max(marqueeBox.startX, curX);
+        const mBottom = Math.max(marqueeBox.startY, curY);
+
+        const intersectingIds = template.elements
+          .filter((el) => {
+            const elRight = el.x + el.width;
+            const elBottom = el.y + el.height;
+            return el.x < mRight && elRight > mLeft && el.y < mBottom && elBottom > mTop;
+          })
+          .map((el) => el.id);
+
+        if (onSetSelectedIds) {
+          onSetSelectedIds(intersectingIds);
+        } else if (onSelectMultipleElements) {
+          onSelectMultipleElements(intersectingIds);
+        } else if (onSelectElement) {
+          if (intersectingIds.length === 1) {
+            onSelectElement(intersectingIds[0]);
+          } else if (intersectingIds.length === 0) {
+            onSelectElement(null);
+          }
+        }
+      }
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Pointer Up
+  // -------------------------------------------------------------
+  const handlePointerUp = () => {
+    // If marquee was clicked but not dragged, clear selection (Canvas background click)
+    if (marqueeBox && !marqueeBox.hasMoved) {
+      if (onSetSelectedIds) {
+        onSetSelectedIds([]);
+      } else if (onSelectMultipleElements) {
+        onSelectMultipleElements([]);
+      } else if (onSelectElement) {
+        onSelectElement(null);
+      }
+    }
+
+    setActiveDrag(null);
+    setActiveResize(null);
+    setMarqueeBox(null);
+    setActiveGuides([]);
+  };
+
+  // Render SVG NFC Icon Variants
+  const renderNfcIcon = (el: CanvasElement) => {
+    const isDark = el.iconVariant === 'phone_outline';
+    const fill = el.color || (isDark ? '#ffffff' : '#0284c7');
+
+    switch (el.iconVariant) {
+      case 'hand_phone':
+        return (
+          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <rect x="22" y="12" width="46" height="60" rx="8" fill="#e0f2fe" stroke={fill} strokeWidth="3" />
+            <rect x="26" y="16" width="38" height="42" rx="4" fill="#ffffff" />
+            <circle cx="45" cy="64" r="3" fill={fill} />
+            {/* NFC Waves */}
+            <path d="M 68 20 A 12 12 0 0 1 68 36" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
+            <path d="M 74 14 A 20 20 0 0 1 74 42" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
+            <path d="M 80 8 A 28 28 0 0 1 80 48" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        );
+
+      case 'circular_tap':
+        return (
+          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <circle cx="50" cy="40" r="32" fill="#ecfdf5" stroke={fill} strokeWidth="3" strokeDasharray="6 4" />
+            <circle cx="50" cy="40" r="22" fill="#ffffff" stroke={fill} strokeWidth="2.5" />
+            <circle cx="50" cy="40" r="8" fill={fill} />
+            <path d="M 50 14 L 54 8 L 46 8 Z" fill={fill} />
+            <path d="M 50 66 L 46 72 L 54 72 Z" fill={fill} />
+          </svg>
+        );
+
+      case 'phone_outline':
+        return (
+          <svg viewBox="0 0 80 110" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <rect x="10" y="8" width="60" height="94" rx="14" fill="#0f172a" stroke={fill} strokeWidth="3" />
+            <rect x="16" y="18" width="48" height="66" rx="6" fill="#1e293b" />
+            <path d="M 32 12 L 48 12" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="40" cy="93" r="3.5" fill="#64748b" />
+            <path d="M 34 45 A 8 8 0 0 1 46 45" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M 30 40 A 14 14 0 0 1 50 40" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M 26 35 A 20 20 0 0 1 54 35" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        );
+
+      case 'nfc_badge':
+        return (
+          <svg viewBox="0 0 80 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <rect x="8" y="8" width="64" height="64" rx="16" fill="#eff6ff" stroke={fill} strokeWidth="3" />
+            <path d="M 28 52 A 16 16 0 0 1 52 28" fill="none" stroke={fill} strokeWidth="3.5" strokeLinecap="round" />
+            <path d="M 28 42 A 8 8 0 0 1 42 28" fill="none" stroke={fill} strokeWidth="3.5" strokeLinecap="round" />
+            <circle cx="30" cy="50" r="3.5" fill={fill} />
+          </svg>
+        );
+
+      case 'waves_only':
+        return (
+          <svg viewBox="0 0 100 60" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <path d="M 35 48 A 15 15 0 0 1 35 12" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
+            <path d="M 48 54 A 25 25 0 0 1 48 6" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
+            <path d="M 61 59 A 35 35 0 0 1 61 1" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
+          </svg>
+        );
+
+      case 'tap_target_circle':
+        return (
+          <svg viewBox="0 0 100 100" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <circle cx="50" cy="50" r="42" fill="none" stroke={fill} strokeWidth="3" strokeDasharray="8 6" opacity="0.6" />
+            <circle cx="50" cy="50" r="30" fill="none" stroke={fill} strokeWidth="3" />
+            <circle cx="50" cy="50" r="16" fill="#e0f2fe" stroke={fill} strokeWidth="2.5" />
+            <circle cx="50" cy="50" r="6" fill={fill} />
+          </svg>
+        );
+
+      default:
+        return (
+          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <rect x="22" y="12" width="46" height="60" rx="8" fill="#e0f2fe" stroke={fill} strokeWidth="3" />
+            <circle cx="45" cy="64" r="3" fill={fill} />
+          </svg>
+        );
+    }
+  };
+
+  // Render Google Star Ratings
+  const renderGoogleStars = (el: CanvasElement) => {
+    const starColor = el.starColor || el.color || '#FBBC05';
+    const starCount = el.starCount || (el.content === 'google_1_star' ? 1 : 5);
+
+    return (
+      <div className="flex items-center justify-center gap-1.5 w-full h-full pointer-events-none">
+        {Array.from({ length: starCount }).map((_, i) => (
+          <svg key={i} viewBox="0 0 24 24" className="w-full h-full max-w-[40px] drop-shadow-xs" fill={starColor}>
+            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+          </svg>
+        ))}
+      </div>
+    );
+  };
+
+  // Render Google Logos
+  const renderGoogleLogo = (el: CanvasElement) => {
+    const content = el.content || 'g_icon';
+
+    if (content === 'google_reviews_badge') {
+      return (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white shadow-md border border-slate-200 pointer-events-none">
+          <svg viewBox="0 0 24 24" className="w-5 h-5">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+          </svg>
+          <span className="text-xs font-bold text-slate-800">Google Reviews</span>
+        </div>
+      );
+    }
+
+    if (content === 'google_wordmark') {
+      return (
+        <svg viewBox="0 0 272 92" className="w-full h-full pointer-events-none">
+          <path d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#EA4335" />
+          <path d="M163.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18c0-12.85 9.99-22.18 22.25-22.18s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44s-12.51 5.46-12.51 13.44c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#FBBC05" />
+          <path d="M209.75 26.34v39.82c0 16.38-9.66 23.07-21.08 23.07-10.75 0-17.22-7.19-19.66-13.07l8.48-3.53c1.51 3.61 5.21 7.87 11.17 7.87 7.31 0 11.84-4.51 11.84-13v-3.19h-.34c-2.18 2.69-6.38 5.04-11.68 5.04-11.09 0-21.25-9.66-21.25-22.09 0-12.52 10.16-22.26 21.25-22.26 5.29 0 9.49 2.35 11.68 4.96h.34v-3.61h9.25zm-8.56 20.92c0-7.81-5.21-13.52-11.84-13.52-6.72 0-12.35 5.71-12.35 13.52 0 7.73 5.63 13.36 12.35 13.36 6.63 0 11.84-5.63 11.84-13.36z" fill="#4285F4" />
+          <path d="M225 3v65h-9.5V3h9.5z" fill="#34A853" />
+          <path d="M262.02 54.48l7.56 5.04c-2.44 3.61-8.32 9.83-18.48 9.83-12.6 0-22.01-9.74-22.01-22.18 0-13.19 9.49-22.18 20.92-22.18 11.51 0 17.14 9.16 18.98 14.11l1.01 2.52-29.65 12.28c2.27 4.45 5.8 6.72 10.75 6.72 4.96 0 8.4-2.44 10.92-6.14zm-23.27-7.98l19.82-8.23c-1.09-2.77-4.37-4.7-8.23-4.7-4.95 0-11.84 4.37-11.59 12.93z" fill="#EA4335" />
+          <path d="M35.29 41.41V32H67c.31 1.64.47 3.58.47 5.68 0 7.06-1.93 15.79-8.15 22.01-6.05 6.3-13.78 9.66-24.02 9.66C16.32 69.35 0 53.79 0 34.68S16.32 0 35.29 0c9.91 0 17.06 3.86 22.35 8.99l-6.3 6.3c-3.87-3.61-9.07-6.38-16.05-6.38-13.02 0-23.36 10.58-23.36 23.69s10.33 23.69 23.36 23.69c8.49 0 13.36-3.36 16.47-6.47 2.52-2.52 4.12-6.13 4.79-11.17H35.29z" fill="#4285F4" />
+        </svg>
+      );
+    }
+
+    return (
+      <svg viewBox="0 0 24 24" className="w-full h-full pointer-events-none">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+      </svg>
+    );
+  };
+
+  // Render individual element
+  const renderElement = (el: CanvasElement) => {
+    const selected = isSelected(el.id);
+    const textContent = el.type === 'text' ? formatTextContent(el.content) : '';
+
+    // If text element resolved to empty string and not interactive, don't render empty block
+    if (el.type === 'text' && !textContent && !interactive) {
+      return null;
+    }
+
+    return (
+      <div
+        key={el.id}
+        onPointerDown={(e) => handleElementPointerDown(e, el)}
+        style={{
+          position: 'absolute',
+          left: `${el.x}px`,
+          top: `${el.y}px`,
+          width: `${el.width}px`,
+          height: `${el.height}px`,
+          zIndex: el.zIndex || 1,
+          transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+          opacity: el.opacity !== undefined ? el.opacity : 1,
+          userSelect: 'none',
+        }}
+        className={`group ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : (interactive ? 'hover:ring-1 hover:ring-blue-300' : '')}`}
+      >
+        {/* Element Contents */}
+        {el.type === 'text' && (
+          <div
+            style={{
+              fontSize: `${el.fontSize || 16}px`,
+              fontWeight: el.fontWeight || 'normal',
+              fontStyle: el.fontStyle || 'normal',
+              color: el.color || '#000000',
+              fontFamily: el.fontFamily || 'Outfit, sans-serif',
+              letterSpacing: el.letterSpacing ? `${el.letterSpacing}px` : undefined,
+              lineHeight: el.lineHeight || 1.25,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent:
+                el.textAlign === 'center'
+                  ? 'center'
+                  : el.textAlign === 'right'
+                  ? 'flex-end'
+                  : 'flex-start',
+              width: '100%',
+              height: '100%',
+            }}
+            className="overflow-hidden whitespace-pre-wrap select-none"
+          >
+            <span
+              style={{
+                textAlign: el.textAlign || 'left',
+                width: el.textAlign === 'center' ? '100%' : 'auto',
+                display: 'block',
+              }}
+            >
+              {textContent}
+            </span>
+          </div>
+        )}
+
+        {el.type === 'shape' && (
+          <div
+            style={{
+              backgroundColor: el.backgroundColor || 'transparent',
+              borderColor: el.borderColor || 'transparent',
+              borderWidth: el.borderWidth ? `${el.borderWidth}px` : 0,
+              borderRadius: el.borderRadius ? `${el.borderRadius}px` : 0,
+              boxShadow: el.boxShadow || 'none',
+            }}
+            className="w-full h-full pointer-events-none"
+          />
+        )}
+
+        {(el.type === 'qr' || (el.type as any) === 'qr_code') && (
+          <div
+            style={{
+              backgroundColor: el.backgroundColor || '#ffffff',
+              borderColor: el.borderColor || 'transparent',
+              borderWidth: el.borderWidth ? `${el.borderWidth}px` : 0,
+              borderRadius: el.borderRadius ? `${el.borderRadius}px` : 8,
+              boxShadow: el.boxShadow || 'none',
+            }}
+            className="w-full h-full p-1 shadow-sm flex items-center justify-center pointer-events-none"
+          >
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Dynamic QR" className="w-full h-full object-contain pointer-events-none" />
+            ) : (
+              <div className="w-full h-full bg-slate-100 animate-pulse rounded" />
+            )}
+          </div>
+        )}
+
+        {el.type === 'google_logo' && renderGoogleLogo(el)}
+        {(el.type === 'stars' || (el.type as any) === 'google_star') && renderGoogleStars(el)}
+        {el.type === 'nfc_icon' && renderNfcIcon(el)}
+
+        {(el.type === 'svg' || (el.type as any) === 'svg_custom') && el.svgContent && (
+          <div
+            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full pointer-events-none"
+            dangerouslySetInnerHTML={{ __html: el.svgContent }}
+          />
+        )}
+
+        {el.type === 'divider_or' && (
+          <div className="w-full h-full flex flex-col items-center justify-between py-1 select-none pointer-events-none">
+            <div className="w-[1.5px] flex-1 bg-slate-300 dark:bg-slate-700" />
+            <span
+              style={{
+                color: el.color || '#64748b',
+                fontSize: `${el.fontSize || 11}px`,
+                fontWeight: el.fontWeight || '700',
+              }}
+              className="my-1 uppercase tracking-widest font-mono select-none"
+            >
+              {el.content || 'OR'}
+            </span>
+            <div className="w-[1.5px] flex-1 bg-slate-300 dark:bg-slate-700" />
+          </div>
+        )}
+
+        {el.type === 'image' && (
+          <div className="w-full h-full overflow-hidden pointer-events-none" style={{ borderRadius: el.borderRadius ? `${el.borderRadius}px` : 0 }}>
+            {el.content ? (
+              <img src={el.content} alt="Element" className="w-full h-full object-cover pointer-events-none" />
+            ) : (
+              <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-400">
+                Gambar
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 8 Precise Resize Handles when selected */}
+        {selected && interactive && (
+          <>
+            {/* 4 Corners */}
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'nw')}
+              className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'ne')}
+              className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'sw')}
+              className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full cursor-nesw-resize shadow-md z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'se')}
+              className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full cursor-nwse-resize shadow-md z-30"
+            />
+
+            {/* 4 Edge Handles */}
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'n')}
+              className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-blue-600 border border-white rounded-sm cursor-ns-resize z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 's')}
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-blue-600 border border-white rounded-sm cursor-ns-resize z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'w')}
+              className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-4 bg-blue-600 border border-white rounded-sm cursor-ew-resize z-30"
+            />
+            <div
+              onPointerDown={(e) => handleResizePointerDown(e, el, 'e')}
+              className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-4 bg-blue-600 border border-white rounded-sm cursor-ew-resize z-30"
+            />
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onPointerDown={handleCanvasBackgroundPointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{
+        width: `${canvasWidth}px`,
+        height: `${canvasHeight}px`,
+        background: transparentBackground ? 'transparent' : (template.background || '#ffffff'),
+        borderRadius: transparentBackground ? '0px' : `${borderRadius}px`,
+        transform: scale !== 1 ? `scale(${scale})` : undefined,
+        transformOrigin: 'center center',
+      }}
+      className={`relative shadow-2xl overflow-hidden select-none border border-slate-200/50 ${interactive ? 'cursor-default' : 'pointer-events-none'}`}
+    >
+      {/* Grid Bantu Overlay */}
+      {showGrid && interactive && (
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-40"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <pattern id="canvas-grid-pattern" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+              <circle cx={gridSize / 2} cy={gridSize / 2} r="1" fill="#3b82f6" opacity="0.6" />
+              <path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke="#94a3b8" strokeWidth="0.5" opacity="0.35" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#canvas-grid-pattern)" />
+        </svg>
+      )}
+
+      {/* Elements Layer */}
+      {template.elements.map(renderElement)}
+
+      {/* Smart Guidelines (Magenta / Rose Magnet Guides) */}
+      {activeGuides.map((guide, idx) => (
+        <div
+          key={idx}
+          style={{
+            position: 'absolute',
+            left: guide.type === 'v' ? `${guide.pos}px` : 0,
+            top: guide.type === 'h' ? `${guide.pos}px` : 0,
+            width: guide.type === 'v' ? '1.5px' : '100%',
+            height: guide.type === 'h' ? '1.5px' : '100%',
+            zIndex: 998,
+          }}
+          className="bg-rose-500 pointer-events-none shadow-xs flex items-center justify-center"
+        >
+          {guide.label && (
+            <span
+              style={{
+                position: 'absolute',
+                top: guide.type === 'v' ? '12px' : '-18px',
+                left: guide.type === 'h' ? '12px' : '6px',
+              }}
+              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold shadow-md whitespace-nowrap z-50 pointer-events-none"
+            >
+              {guide.label}
+            </span>
+          )}
+        </div>
+      ))}
+
+      {/* Marquee Selection Rectangle Box */}
+      {marqueeBox && marqueeBox.hasMoved && interactive && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${Math.min(marqueeBox.startX, marqueeBox.currentX)}px`,
+            top: `${Math.min(marqueeBox.startY, marqueeBox.currentY)}px`,
+            width: `${Math.abs(marqueeBox.currentX - marqueeBox.startX)}px`,
+            height: `${Math.abs(marqueeBox.currentY - marqueeBox.startY)}px`,
+            zIndex: 999,
+          }}
+          className="border-2 border-dashed border-blue-500 bg-blue-500/15 pointer-events-none rounded-md"
+        />
+      )}
+    </div>
+  );
+}

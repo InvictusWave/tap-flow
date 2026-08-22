@@ -1,0 +1,113 @@
+import { db } from '@/lib/db';
+import { setCachedCard, deleteCachedCard } from '@/lib/redis';
+import { cardScans, cards } from '@/lib/schema';
+import { hashPin, isValidPin, nowUnix } from '@/lib/utils';
+import { eq } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const card = await db.query.cards.findFirst({
+    where: eq(cards.id, id),
+  });
+
+  if (!card) {
+    return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  }
+
+  return NextResponse.json(card);
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const card = await db.query.cards.findFirst({
+    where: eq(cards.id, id),
+    columns: { id: true, slug: true, businessName: true, googleReviewUrl: true },
+  });
+
+  if (!card) {
+    return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  }
+
+  const updateData: Record<string, any> = {
+    updatedAt: nowUnix(),
+  };
+
+  if (body.businessName !== undefined) updateData.businessName = body.businessName?.trim() || null;
+  if (body.googleReviewUrl !== undefined) {
+    updateData.googleReviewUrl = body.googleReviewUrl?.trim() || null;
+    if (body.googleReviewUrl?.trim()) {
+      updateData.status = 'active';
+    }
+  }
+  if (body.location !== undefined) updateData.location = body.location?.trim() || null;
+  if (body.template !== undefined) updateData.template = body.template || 'premium_black';
+  if (body.status !== undefined) updateData.status = body.status;
+
+  if (body.pin) {
+    if (!isValidPin(body.pin)) {
+      return NextResponse.json({ error: 'PIN harus 6 digit angka.' }, { status: 400 });
+    }
+    updateData.pinHash = await hashPin(body.pin);
+  }
+
+  await db
+    .update(cards)
+    .set(updateData)
+    .where(eq(cards.id, id));
+
+  // Sync Redis Cache
+  const finalReviewUrl = updateData.googleReviewUrl ?? card.googleReviewUrl;
+  const finalBusinessName = updateData.businessName ?? card.businessName ?? '';
+  const finalStatus = updateData.status ?? 'active';
+
+  if (finalStatus === 'active' && finalReviewUrl) {
+    await setCachedCard(card.slug, {
+      google_review_url: finalReviewUrl,
+      business_name: finalBusinessName,
+      card_id: card.id,
+    });
+  } else {
+    await deleteCachedCard(card.slug);
+  }
+
+  return NextResponse.json({ success: true, data: updateData });
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const card = await db.query.cards.findFirst({
+    where: eq(cards.id, id),
+    columns: { id: true, slug: true },
+  });
+
+  if (!card) {
+    return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  }
+
+  // Delete card scans first due to foreign key
+  await db.delete(cardScans).where(eq(cardScans.cardId, id));
+  await db.delete(cards).where(eq(cards.id, id));
+
+  // Invalidate Redis cache
+  await deleteCachedCard(card.slug);
+
+  return NextResponse.json({ success: true, message: 'Card deleted successfully' });
+}

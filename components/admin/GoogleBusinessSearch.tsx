@@ -77,7 +77,7 @@ export default function GoogleBusinessSearch({
 
     const directReviewUrl = item.googleReviewUrl?.includes('writereview')
       ? item.googleReviewUrl
-      : item.placeId && !item.placeId.startsWith('custom')
+      : item.placeId && item.placeId.startsWith('ChIJ')
       ? `https://search.google.com/local/writereview?placeid=${item.placeId}`
       : item.googleReviewUrl;
 

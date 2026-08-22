@@ -190,7 +190,6 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
                   template={activeTemplate}
                   scale={aspect === 'vertical' ? 0.72 : 0.9}
                   interactive={false}
-                  transparentBackground={true}
                   mockData={{
                     businessName: card.businessName || '',
                     location: card.location || '',
@@ -235,7 +234,6 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
                   template={activeTemplate}
                   scale={1}
                   interactive={false}
-                  transparentBackground={true}
                   mockData={{
                     businessName: c.businessName || '',
                     location: c.location || '',
@@ -258,7 +256,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
           >
             <Printer size={18} weight="bold" />
             <span>
-              {isExporting ? 'Memproses Export...' : (cards.length > 1 ? `Export ${cards.length} PNG (ZIP)` : 'Export PNG (Transparan)')}
+              {isExporting ? 'Memproses Export...' : (cards.length > 1 ? `Export ${cards.length} PNG (ZIP)` : 'Export PNG')}
             </span>
           </button>
           <button

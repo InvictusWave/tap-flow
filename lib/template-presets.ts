@@ -215,4 +215,25 @@ export const TEMPLATE_PRESETS: CustomTemplateData[] = [
       { id: 'plaque-bus', type: 'text', content: '{{businessName}}', x: 20, y: 440, width: 460, height: 20, zIndex: 2, fontSize: 14, fontWeight: '600', textAlign: 'center', color: '#94a3b8', fontFamily: 'Outfit' },
     ],
   },
+  {
+    id: 'preset-executive-horiz',
+    name: 'Horizontal Executive (Gold & Slate)',
+    aspect: 'horizontal',
+    width: 600,
+    height: 380,
+    background: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 100%)',
+    elements: [
+      { id: 'exec-border', type: 'shape', x: 15, y: 15, width: 570, height: 350, zIndex: 1, borderWidth: 1, borderColor: '#78716c', borderRadius: 12, backgroundColor: 'transparent' },
+      { id: 'exec-title', type: 'text', content: '{{businessName}}', x: 40, y: 45, width: 330, height: 35, zIndex: 2, fontSize: 22, fontWeight: '700', textAlign: 'left', color: '#fbbf24', fontFamily: 'Outfit', letterSpacing: 1 },
+      { id: 'exec-stars', type: 'stars', x: 40, y: 85, width: 140, height: 25, zIndex: 2, starCount: 5, starFilled: true, starColor: '#fbbf24' },
+      { id: 'exec-review-text', type: 'text', content: 'SHARE YOUR EXPERIENCE', x: 40, y: 145, width: 330, height: 20, zIndex: 2, fontSize: 13, fontWeight: '600', textAlign: 'left', color: '#a8a29e', fontFamily: 'Outfit', letterSpacing: 2 },
+      { id: 'exec-g-logo', type: 'google_logo', content: 'google_wordmark', x: 30, y: 165, width: 220, height: 70, zIndex: 2 },
+      { id: 'exec-nfc-icon', type: 'nfc_icon', iconVariant: 'n_mark', x: 40, y: 280, width: 45, height: 45, zIndex: 2, color: '#fbbf24' },
+      { id: 'exec-nfc-text', type: 'text', content: 'TAP SMARTPHONE HERE', x: 95, y: 295, width: 250, height: 20, zIndex: 2, fontSize: 13, fontWeight: '700', textAlign: 'left', color: '#fbbf24', fontFamily: 'Outfit', letterSpacing: 1 },
+      
+      { id: 'exec-qr-box', type: 'qr', qrVariant: 'scan_corners', x: 400, y: 65, width: 140, height: 140, zIndex: 2, borderRadius: 8, backgroundColor: '#ffffff', qrDarkColor: '#1c1917' },
+      { id: 'exec-qr-text', type: 'text', content: 'SCAN TO REVIEW', x: 390, y: 220, width: 160, height: 20, zIndex: 2, fontSize: 12, fontWeight: '700', textAlign: 'center', color: '#a8a29e', fontFamily: 'Outfit', letterSpacing: 1 },
+      { id: 'exec-loc', type: 'text', content: '{{location}}', x: 350, y: 330, width: 200, height: 20, zIndex: 2, fontSize: 12, fontWeight: '400', textAlign: 'right', color: '#78716c', fontFamily: 'Outfit' },
+    ],
+  },
 ];

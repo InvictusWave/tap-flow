@@ -22,6 +22,8 @@ export type NfcIconVariant =
   | 'custom_svg';
 
 export type QrVariant = 'standard' | 'scan_corners' | 'solid_frame';
+export type QrDotStyle = 'square' | 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded';
+export type QrCornerStyle = 'square' | 'dot' | 'extra-rounded';
 
 export interface CanvasElement {
   id: string;
@@ -55,6 +57,8 @@ export interface CanvasElement {
   qrDarkColor?: string;
   qrLightColor?: string;
   qrVariant?: QrVariant;
+  qrDotStyle?: QrDotStyle;
+  qrCornerStyle?: QrCornerStyle;
   
   // Specific to Stars
   starCount?: number;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import CanvasRenderer from '@/components/admin/builder/CanvasRenderer';
 import GoogleBusinessSearch, { SelectedPlace } from '@/components/admin/GoogleBusinessSearch';
 import { generateSlug } from '@/lib/utils';
+import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import QRExport from '@/components/admin/QRExport';
 import { CustomTemplateData } from '@/types/template-builder';
 import {
@@ -73,7 +74,9 @@ export default function CreateCardPage() {
   const handlePlaceSelect = (place: SelectedPlace) => {
     setBusinessName(place.name);
     setLocation(place.location);
-    setGoogleReviewUrl(place.googleReviewUrl);
+    setGoogleReviewUrl(
+      isDirectGoogleReviewUrl(place.googleReviewUrl) ? place.googleReviewUrl : ''
+    );
     if (place.recommendedSlug) {
       setSlug(place.recommendedSlug);
     }
@@ -82,6 +85,13 @@ export default function CreateCardPage() {
   // Handle Single Card Submit
   const handleCreateSingle = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (googleReviewUrl && !isDirectGoogleReviewUrl(googleReviewUrl)) {
+      setSingleMessage({
+        type: 'error',
+        text: 'Gunakan link "Minta ulasan" resmi, bukan URL profil Google Maps.',
+      });
+      return;
+    }
     setLoadingSingle(true);
     setSingleMessage(null);
 
@@ -428,11 +438,12 @@ export default function CreateCardPage() {
                   type="url"
                   value={googleReviewUrl}
                   onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                  placeholder="https://g.page/r/xxx/review atau link Google Maps"
+                  placeholder="https://g.page/r/xxx/review"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Jika dikosongkan, status kartu menjadi <span className="font-semibold text-amber-500">Belum Aktif</span> dan pemilik toko dapat mengaktifkannya via form aktivasi.
+                  Tempel link dari Google Business Profile melalui <strong>Minta ulasan</strong>.
+                  Jika kosong, kartu berstatus <span className="font-semibold text-amber-500">Belum Aktif</span>.
                 </p>
               </div>
 

@@ -4,6 +4,7 @@ import { cardScans, cards } from '@/lib/schema';
 import { hashPin, isValidPin, nowUnix } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
+import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 
 export async function GET(
   _request: NextRequest,
@@ -45,6 +46,16 @@ export async function PATCH(
   const updateData: Record<string, any> = {
     updatedAt: nowUnix(),
   };
+
+  if (
+    body.googleReviewUrl?.trim() &&
+    !isDirectGoogleReviewUrl(body.googleReviewUrl)
+  ) {
+    return NextResponse.json(
+      { error: 'Gunakan link "Minta ulasan" resmi, bukan URL profil Google Maps.' },
+      { status: 400 }
+    );
+  }
 
   if (body.businessName !== undefined) updateData.businessName = body.businessName?.trim() || null;
   if (body.googleReviewUrl !== undefined) {

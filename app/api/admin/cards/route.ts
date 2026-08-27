@@ -3,6 +3,7 @@ import { cards } from '@/lib/schema';
 import { count, desc, eq, like, or, sql } from 'drizzle-orm';
 import { generateId, generateSlug, hashPin, isValidPin, nowUnix } from '@/lib/utils';
 import { setCachedCard } from '@/lib/redis';
+import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -89,6 +90,13 @@ export async function POST(request: NextRequest) {
 
   if (slug.length < 3) {
     return NextResponse.json({ error: 'Slug minimal 3 karakter.' }, { status: 400 });
+  }
+
+  if (googleReviewUrl?.trim() && !isDirectGoogleReviewUrl(googleReviewUrl)) {
+    return NextResponse.json(
+      { error: 'Gunakan link "Minta ulasan" resmi, bukan URL profil Google Maps.' },
+      { status: 400 }
+    );
   }
 
   // Check unique slug

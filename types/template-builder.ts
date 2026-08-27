@@ -18,6 +18,7 @@ export type NfcIconVariant =
   | 'circular_tap'
   | 'nfc_badge'
   | 'waves_only'
+  | 'n_mark'
   | 'tap_target_circle'
   | 'custom_svg';
 

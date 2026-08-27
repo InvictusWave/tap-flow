@@ -97,6 +97,11 @@ const NFC_LIBRARY: { id: NfcIconVariant; label: string; icon: React.ReactNode }[
     icon: <WifiHigh size={18} weight="duotone" className="text-amber-500" />,
   },
   {
+    id: 'n_mark',
+    label: 'N-Mark NFC',
+    icon: <Broadcast size={18} weight="fill" className="text-sky-500" />,
+  },
+  {
     id: 'tap_target_circle',
     label: 'TAP HERE Circle Target',
     icon: <Target size={18} weight="duotone" className="text-rose-500" />,

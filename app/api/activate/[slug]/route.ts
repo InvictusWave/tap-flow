@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { setCachedCard } from '@/lib/redis';
+import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import { cards } from '@/lib/schema';
 import { hashPin, isValidPin, nowUnix, verifyPin } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
@@ -52,6 +53,13 @@ export async function POST(
     }
   } catch {
     return NextResponse.json({ error: 'Format URL tidak valid.' }, { status: 400 });
+  }
+
+  if (!isDirectGoogleReviewUrl(googleReviewUrl)) {
+    return NextResponse.json(
+      { error: 'Gunakan link "Minta ulasan" resmi, bukan URL profil Google Maps.' },
+      { status: 400 }
+    );
   }
 
   // Find card

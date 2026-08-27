@@ -6,11 +6,10 @@ import {
   MapPin,
   CheckCircle,
   WarningCircle,
-  Lock,
   ArrowsClockwise,
   ArrowSquareOut,
   ShieldCheck,
-  Sparkle,
+  LinkSimple,
 } from '@phosphor-icons/react';
 
 interface Props {
@@ -20,6 +19,7 @@ interface Props {
 
 export default function ActivateForm({ slug, isActive }: Props) {
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null);
+  const [reviewUrl, setReviewUrl] = useState('');
   const [pin, setPin] = useState('');
   const [currentPin, setCurrentPin] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -27,7 +27,23 @@ export default function ActivateForm({ slug, isActive }: Props) {
 
   const handlePlaceSelect = (place: SelectedPlace) => {
     setSelectedPlace(place);
+    setReviewUrl(isDirectReviewUrl(place.googleReviewUrl) ? place.googleReviewUrl : '');
     setMessage('');
+  };
+
+  const isDirectReviewUrl = (value: string) => {
+    try {
+      const url = new URL(value.trim());
+      const isGoogleHost =
+        url.hostname === 'google.com' || url.hostname.endsWith('.google.com');
+      return (
+        (url.hostname === 'g.page' && url.pathname.endsWith('/review')) ||
+        (url.hostname === 'search.google.com' && url.pathname === '/local/writereview') ||
+        (isGoogleHost && url.searchParams.get('action') === 'write-review')
+      );
+    } catch {
+      return false;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +52,12 @@ export default function ActivateForm({ slug, isActive }: Props) {
     if (!selectedPlace) {
       setStatus('error');
       setMessage('Silakan cari dan pilih profil toko / bisnis Anda dari Google Maps terlebih dahulu.');
+      return;
+    }
+
+    if (!isDirectReviewUrl(reviewUrl)) {
+      setStatus('error');
+      setMessage('Tempel link "Minta ulasan" resmi dari Google Business Profile, bukan URL halaman profil Google Maps.');
       return;
     }
 
@@ -61,7 +83,7 @@ export default function ActivateForm({ slug, isActive }: Props) {
         body: JSON.stringify({
           businessName: selectedPlace.name,
           location: selectedPlace.location,
-          googleReviewUrl: selectedPlace.googleReviewUrl,
+          googleReviewUrl: reviewUrl.trim(),
           pin,
           currentPin,
         }),
@@ -176,7 +198,10 @@ export default function ActivateForm({ slug, isActive }: Props) {
 
             <button
               type="button"
-              onClick={() => setSelectedPlace(null)}
+              onClick={() => {
+                setSelectedPlace(null);
+                setReviewUrl('');
+              }}
               className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 hover:bg-blue-50 transition-colors shadow-2xs"
             >
               <ArrowsClockwise size={13} weight="bold" />
@@ -185,6 +210,47 @@ export default function ActivateForm({ slug, isActive }: Props) {
           </div>
         )}
       </div>
+
+      {selectedPlace && (
+        <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+            LINK MINTA ULASAN GOOGLE:
+          </label>
+          <div className="relative">
+            <LinkSimple
+              size={18}
+              weight="bold"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"
+            />
+            <input
+              type="url"
+              value={reviewUrl}
+              onChange={(event) => {
+                setReviewUrl(event.target.value);
+                setMessage('');
+              }}
+              placeholder="https://g.page/r/.../review"
+              required
+              disabled={status === 'loading'}
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-slate-400 transition-all shadow-xs"
+            />
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            Di Google Business Profile pilih <strong>Baca ulasan</strong>, lalu{' '}
+            <strong>Dapatkan lebih banyak ulasan</strong> dan salin link-nya. Cara ini gratis dan
+            langsung membuka form rating.
+          </p>
+          <a
+            href="https://support.google.com/business/answer/16816815?hl=id"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700"
+          >
+            Lihat petunjuk resmi Google
+            <ArrowSquareOut size={12} weight="bold" />
+          </a>
+        </div>
+      )}
 
       {/* 2. FIELD 2: 6-DIGIT PIN KEAMANAN */}
       <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">

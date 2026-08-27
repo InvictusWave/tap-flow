@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { searchGoogleReviewPlaces } from '@/lib/google-review';
 
 export interface PlaceResult {
   placeId: string;
@@ -20,6 +21,15 @@ export async function GET(request: NextRequest) {
   // 1. If Google Places API key is configured, use Google Places Text Search (Real Google Data with ChIJ Place ID)
   if (googleApiKey) {
     try {
+      const results = await searchGoogleReviewPlaces(query, googleApiKey);
+      if (results.length > 0) {
+        return NextResponse.json({ results });
+      }
+    } catch (err) {
+      console.error('Google Places API (New) error:', err);
+    }
+
+    try {
       const gRes = await fetch(
         `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
           query
@@ -39,7 +49,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
-      console.error('Google Places API error:', err);
+      console.error('Google Places API (Legacy) error:', err);
     }
   }
 
@@ -134,7 +144,7 @@ export async function GET(request: NextRequest) {
             ].filter(Boolean);
 
             const location = addressParts.length > 0 ? addressParts.join(', ') : 'Indonesia';
-            const cleanPlaceId = `ChIJ_${p.osm_id || i}`;
+            const cleanPlaceId = `osm:${p.osm_id || i}`;
             const encodedQuery = encodeURIComponent(`${name} ${location}`.trim());
             const googleUrl = `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
 

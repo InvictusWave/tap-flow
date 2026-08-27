@@ -1,15 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cards, cardScans } from '@/lib/schema';
 import { getCachedCard, setCachedCard, CachedCard } from '@/lib/redis';
 import { eq, sql } from 'drizzle-orm';
+import {
+  isDirectGoogleReviewUrl,
+  resolveDirectGoogleReviewUrl,
+} from '@/lib/google-review';
 
 export const runtime = 'nodejs';
 
 // Asynchronous background scan recorder (does not block HTTP redirect response)
-function recordScanBackground(cardId: string, userAgent: string) {
+async function recordScan(cardId: string, userAgent: string) {
   const now = Math.floor(Date.now() / 1000);
-  Promise.all([
+  await Promise.all([
     db
       .update(cards)
       .set({
@@ -52,10 +56,13 @@ export async function GET(
 
   // 1. ULTRA-FAST REDIS HIT (~20-40ms): Zero database wait time
   const cached = await getCachedCard(slug);
-  if (cached && cached.google_review_url) {
+  const canUpgradeReviewUrl = Boolean(process.env.GOOGLE_PLACES_API_KEY);
+  if (
+    cached &&
+    (!canUpgradeReviewUrl || isDirectGoogleReviewUrl(cached.google_review_url))
+  ) {
     if (shouldRecordAnalytics) {
-      // Record analytics asynchronously in background without delaying client
-      recordScanBackground(cached.card_id, userAgent);
+      after(() => recordScan(cached.card_id, userAgent));
     }
 
     const response = NextResponse.redirect(cached.google_review_url, {
@@ -78,6 +85,7 @@ export async function GET(
         slug: true,
         businessName: true,
         googleReviewUrl: true,
+        location: true,
         status: true,
       },
     });
@@ -114,20 +122,43 @@ export async function GET(
     return NextResponse.redirect(`${origin}/activate/${slug}`, { status: 307 });
   }
 
+  let reviewUrl = card.googleReviewUrl;
+  if (!isDirectGoogleReviewUrl(reviewUrl) && process.env.GOOGLE_PLACES_API_KEY) {
+    try {
+      const directUrl = await resolveDirectGoogleReviewUrl(
+        card.businessName ?? '',
+        card.location,
+        process.env.GOOGLE_PLACES_API_KEY
+      );
+
+      if (directUrl) {
+        reviewUrl = directUrl;
+        await db
+          .update(cards)
+          .set({ googleReviewUrl: directUrl, updatedAt: Math.floor(Date.now() / 1000) })
+          .where(eq(cards.id, card.id));
+      }
+    } catch (err) {
+      console.error(`Failed to resolve direct review URL for slug "${slug}":`, err);
+    }
+  }
+
   // 5. Active Card: Warm Redis Cache and redirect immediately
   const cacheData: CachedCard = {
-    google_review_url: card.googleReviewUrl,
+    google_review_url: reviewUrl,
     business_name: card.businessName ?? '',
     card_id: card.id,
   };
 
-  // Warm cache & conditionally record analytics in background
-  setCachedCard(slug, cacheData);
-  if (shouldRecordAnalytics) {
-    recordScanBackground(card.id, userAgent);
-  }
+  // Keep the redirect fast while Vercel extends the invocation for cache/analytics writes.
+  after(async () => {
+    await Promise.all([
+      setCachedCard(slug, cacheData),
+      shouldRecordAnalytics ? recordScan(card.id, userAgent) : Promise.resolve(),
+    ]);
+  });
 
-  const response = NextResponse.redirect(card.googleReviewUrl, {
+  const response = NextResponse.redirect(reviewUrl, {
     status: 307,
     headers: {
       'X-TapFlow-Cache': 'MISS-WARMED',

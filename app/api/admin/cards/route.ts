@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
 import { count, desc, eq, like, or, sql } from 'drizzle-orm';
 import { generateId, generateSlug, hashPin, isValidPin, nowUnix } from '@/lib/utils';
+import { setCachedCard } from '@/lib/redis';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -126,6 +127,14 @@ export async function POST(request: NextRequest) {
   };
 
   await db.insert(cards).values(newCard);
+
+  if (status === 'active' && newCard.googleReviewUrl) {
+    await setCachedCard(slug, {
+      google_review_url: newCard.googleReviewUrl,
+      business_name: newCard.businessName ?? '',
+      card_id: id,
+    });
+  }
 
   return NextResponse.json({
     success: true,

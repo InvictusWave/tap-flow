@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import GoogleBusinessSearch, { SelectedPlace } from '@/components/admin/GoogleBusinessSearch';
+import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import {
   MapPin,
   CheckCircle,
@@ -27,23 +28,8 @@ export default function ActivateForm({ slug, isActive }: Props) {
 
   const handlePlaceSelect = (place: SelectedPlace) => {
     setSelectedPlace(place);
-    setReviewUrl(isDirectReviewUrl(place.googleReviewUrl) ? place.googleReviewUrl : '');
+    setReviewUrl(isDirectGoogleReviewUrl(place.googleReviewUrl) ? place.googleReviewUrl : '');
     setMessage('');
-  };
-
-  const isDirectReviewUrl = (value: string) => {
-    try {
-      const url = new URL(value.trim());
-      const isGoogleHost =
-        url.hostname === 'google.com' || url.hostname.endsWith('.google.com');
-      return (
-        (url.hostname === 'g.page' && url.pathname.endsWith('/review')) ||
-        (url.hostname === 'search.google.com' && url.pathname === '/local/writereview') ||
-        (isGoogleHost && url.searchParams.get('action') === 'write-review')
-      );
-    } catch {
-      return false;
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,7 +41,7 @@ export default function ActivateForm({ slug, isActive }: Props) {
       return;
     }
 
-    if (!isDirectReviewUrl(reviewUrl)) {
+    if (!isDirectGoogleReviewUrl(reviewUrl)) {
       setStatus('error');
       setMessage('Tempel link "Minta ulasan" resmi dari Google Business Profile, bukan URL halaman profil Google Maps.');
       return;

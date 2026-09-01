@@ -6,6 +6,7 @@ import {
   SpinnerGap,
   CaretRight,
 } from '@phosphor-icons/react';
+import type { GoogleReviewPlace } from '@/lib/google-review';
 
 export interface SelectedPlace {
   name: string;
@@ -26,7 +27,7 @@ export default function GoogleBusinessSearch({
   initialQuery = '',
 }: Props) {
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<GoogleReviewPlace[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,8 +46,6 @@ export default function GoogleBusinessSearch({
   // Debounced search
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) {
-      setResults([]);
-      setIsOpen(false);
       return;
     }
 
@@ -67,7 +66,7 @@ export default function GoogleBusinessSearch({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const handleSelect = (item: any) => {
+  const handleSelect = (item: GoogleReviewPlace) => {
     const cleanName = item.name.trim();
     const cleanSlug = cleanName
       .toLowerCase()
@@ -75,16 +74,10 @@ export default function GoogleBusinessSearch({
       .replace(/^-+|-+$/g, '')
       .slice(0, 24);
 
-    const directReviewUrl = item.googleReviewUrl?.includes('writereview')
-      ? item.googleReviewUrl
-      : item.placeId && item.placeId.startsWith('ChIJ')
-      ? `https://search.google.com/local/writereview?placeid=${item.placeId}`
-      : item.googleReviewUrl;
-
     onSelect({
       name: cleanName,
       location: item.location || '',
-      googleReviewUrl: directReviewUrl,
+      googleReviewUrl: item.googleReviewUrl,
       recommendedSlug: cleanSlug,
     });
 
@@ -99,7 +92,13 @@ export default function GoogleBusinessSearch({
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (e.target.value.trim().length < 2) {
+              setResults([]);
+              setIsOpen(false);
+            }
+          }}
           onFocus={() => {
             if (results.length > 0) setIsOpen(true);
           }}

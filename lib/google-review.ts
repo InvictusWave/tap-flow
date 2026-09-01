@@ -13,6 +13,7 @@ export function isDirectGoogleReviewUrl(value: string): boolean {
     return (
       (url.hostname === 'search.google.com' && url.pathname === '/local/writereview') ||
       (url.hostname === 'g.page' && url.pathname.endsWith('/review')) ||
+      (isGoogleHost && url.pathname.startsWith('/maps/place/') && url.pathname.includes('!12e1')) ||
       (isGoogleHost && url.searchParams.get('action') === 'write-review')
     );
   } catch {

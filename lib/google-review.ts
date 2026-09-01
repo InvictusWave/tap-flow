@@ -21,6 +21,12 @@ export function isDirectGoogleReviewUrl(value: string): boolean {
   }
 }
 
+export function reviewUrlFromGoogleMapsFeatureId(value: unknown): string | null {
+  return typeof value === 'string' && /^0x[\da-f]+:0x[\da-f]+$/i.test(value)
+    ? `https://www.google.com/maps/place//data=!4m3!3m2!1s${value}!12e1`
+    : null;
+}
+
 export async function searchGoogleReviewPlaces(
   query: string,
   apiKey: string

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 // @ts-expect-error Node's native TypeScript loader requires the file extension.
-import { isDirectGoogleReviewUrl } from './google-review.ts';
+import { isDirectGoogleReviewUrl, reviewUrlFromGoogleMapsFeatureId } from './google-review.ts';
 
 test('accepts Google review composer links only', () => {
   assert.equal(
@@ -20,4 +20,12 @@ test('accepts Google review composer links only', () => {
     isDirectGoogleReviewUrl('https://example.com/maps/place//data=!4m3!3m2!1s123!12e1'),
     false
   );
+});
+
+test('builds a direct review URL from a Google Maps feature ID', () => {
+  assert.equal(
+    reviewUrlFromGoogleMapsFeatureId('0x2e69f123:0x456abc'),
+    'https://www.google.com/maps/place//data=!4m3!3m2!1s0x2e69f123:0x456abc!12e1'
+  );
+  assert.equal(reviewUrlFromGoogleMapsFeatureId('not-a-google-feature-id'), null);
 });

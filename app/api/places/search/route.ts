@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchGoogleReviewPlaces } from '@/lib/google-review';
+import {
+  reviewUrlFromGoogleMapsFeatureId,
+  searchGoogleReviewPlaces,
+} from '@/lib/google-review';
 
 export interface PlaceResult {
   placeId: string;
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ponytail: undocumented fallback; configure GOOGLE_PLACES_API_KEY if Google changes this response.
   // 2. High-precision Google Maps Live Search (Finds exact real Indonesian businesses, branches, and full addresses)
   try {
     const url = `https://www.google.com/search?tbm=map&q=${encodeURIComponent(query)}&hl=id`;
@@ -81,20 +85,11 @@ export async function GET(request: NextRequest) {
           const fullAddress = p[39] || p[2] || p[18] || '';
           const hexId = p[10];
           
-          let reviewUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            `${name}, ${fullAddress || ''}`.trim()
-          )}`;
-
-          // Google Maps CID generates official working direct URL: https://maps.google.com/?cid=...
-          if (hexId && typeof hexId === 'string' && hexId.includes(':')) {
-            const cidHex = hexId.split(':')[1];
-            try {
-              const cidDec = BigInt(cidHex).toString(10);
-              reviewUrl = `https://maps.google.com/?cid=${cidDec}`;
-            } catch {
-              // fallback
-            }
-          }
+          const reviewUrl =
+            reviewUrlFromGoogleMapsFeatureId(hexId) ??
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              `${name}, ${fullAddress || ''}`.trim()
+            )}`;
 
           results.push({
             placeId: hexId || name,

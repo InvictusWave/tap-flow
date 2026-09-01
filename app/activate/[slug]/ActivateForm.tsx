@@ -10,7 +10,6 @@ import {
   ArrowsClockwise,
   ArrowSquareOut,
   ShieldCheck,
-  LinkSimple,
 } from '@phosphor-icons/react';
 
 interface Props {
@@ -27,8 +26,17 @@ export default function ActivateForm({ slug, isActive }: Props) {
   const [message, setMessage] = useState('');
 
   const handlePlaceSelect = (place: SelectedPlace) => {
+    if (!isDirectGoogleReviewUrl(place.googleReviewUrl)) {
+      setSelectedPlace(null);
+      setReviewUrl('');
+      setStatus('error');
+      setMessage('Link ulasan belum ditemukan. Coba cari dengan nama bisnis dan kota yang lebih spesifik.');
+      return;
+    }
+
     setSelectedPlace(place);
-    setReviewUrl(isDirectGoogleReviewUrl(place.googleReviewUrl) ? place.googleReviewUrl : '');
+    setReviewUrl(place.googleReviewUrl);
+    setStatus('idle');
     setMessage('');
   };
 
@@ -43,7 +51,7 @@ export default function ActivateForm({ slug, isActive }: Props) {
 
     if (!isDirectGoogleReviewUrl(reviewUrl)) {
       setStatus('error');
-      setMessage('Tempel link "Minta ulasan" resmi dari Google Business Profile, bukan URL halaman profil Google Maps.');
+      setMessage('Link ulasan tidak valid. Cari dan pilih kembali profil bisnis Anda.');
       return;
     }
 
@@ -196,47 +204,6 @@ export default function ActivateForm({ slug, isActive }: Props) {
           </div>
         )}
       </div>
-
-      {selectedPlace && (
-        <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-            LINK MINTA ULASAN GOOGLE:
-          </label>
-          <div className="relative">
-            <LinkSimple
-              size={18}
-              weight="bold"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500"
-            />
-            <input
-              type="url"
-              value={reviewUrl}
-              onChange={(event) => {
-                setReviewUrl(event.target.value);
-                setMessage('');
-              }}
-              placeholder="https://g.page/r/.../review"
-              required
-              disabled={status === 'loading'}
-              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-slate-400 transition-all shadow-xs"
-            />
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Di Google Business Profile pilih <strong>Baca ulasan</strong>, lalu{' '}
-            <strong>Dapatkan lebih banyak ulasan</strong> dan salin link-nya. Cara ini gratis dan
-            langsung membuka form rating.
-          </p>
-          <a
-            href="https://support.google.com/business/answer/16816815?hl=id"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700"
-          >
-            Lihat petunjuk resmi Google
-            <ArrowSquareOut size={12} weight="bold" />
-          </a>
-        </div>
-      )}
 
       {/* 2. FIELD 2: 6-DIGIT PIN KEAMANAN */}
       <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">

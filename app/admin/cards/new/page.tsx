@@ -66,7 +66,10 @@ export default function CreateCardPage() {
   const [bulkResult, setBulkResult] = useState<BulkCard[] | null>(null);
   const [bulkError, setBulkError] = useState('');
   const [appUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
-  const availableTemplates = [...TEMPLATE_PRESETS, ...customTemplatesList];
+  const availableTemplates: TemplateOption[] = [
+    ...TEMPLATE_PRESETS.map((template) => ({ ...template, isCustom: false })),
+    ...customTemplatesList,
+  ];
 
   useEffect(() => {
     fetch('/api/admin/templates')

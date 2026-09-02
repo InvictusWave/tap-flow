@@ -1,12 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { clearClientCache } from '@/lib/client-cache';
 
 export default function LogoutButton() {
   const router = useRouter();
 
   const handleLogout = async () => {
     await fetch('/api/admin/auth', { method: 'DELETE' });
+    clearClientCache();
     router.push('/admin/login');
     router.refresh();
   };

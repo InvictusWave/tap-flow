@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/utils';
 import QRExport from './QRExport';
 import EditCardModal from './EditCardModal';
 import NfcWriterModal from './NfcWriterModal';
+import { getClientCache, setClientCache } from '@/lib/client-cache';
 import {
   Plus,
   DownloadSimple,
@@ -46,15 +47,27 @@ interface TemplateOption {
   name: string;
 }
 
+type CachedCardData = { cards: Card[]; pagination: Pagination };
+
+const initialQuery = new URLSearchParams({
+  page: '1',
+  pageSize: '15',
+  status: 'all',
+  template: 'all',
+}).toString();
+const cardsCacheKey = (query: string) => `cards:${query}`;
+const templatesCacheKey = 'templates';
+
 export default function CardTable({ standalone = false }: { standalone?: boolean }) {
-  const [cards, setCards] = useState<Card[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const initialData = getClientCache<CachedCardData>(cardsCacheKey(initialQuery));
+  const [cards, setCards] = useState<Card[]>(() => initialData?.cards ?? []);
+  const [pagination, setPagination] = useState<Pagination | null>(() => initialData?.pagination ?? null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const [templateFilter, setTemplateFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
 
   // Modals state
   const [qrCard, setQrCard] = useState<Card | null>(null);
@@ -64,12 +77,18 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [showBulkQrModal, setShowBulkQrModal] = useState(false);
-  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>(
+    () => getClientCache<TemplateOption[]>(templatesCacheKey) ?? []
+  );
 
   useEffect(() => {
     fetch('/api/admin/templates')
       .then(res => res.ok ? res.json() : null)
-      .then(data => setTemplates(data?.templates || []))
+      .then(data => {
+        const next = data?.templates || [];
+        setClientCache(templatesCacheKey, next);
+        setTemplates(next);
+      })
       .catch(console.error);
   }, []);
 
@@ -83,13 +102,26 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
         template: templateFilter,
         ...(deferredSearchQuery ? { q: deferredSearchQuery } : {}),
       });
+      const cacheKey = cardsCacheKey(params.toString());
+      const cached = getClientCache<CachedCardData>(cacheKey);
+
+      if (cached) {
+        setCards(cached.cards);
+        setPagination(cached.pagination);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
 
       const res = await fetch(`/api/admin/cards?${params.toString()}`);
+      if (!res.ok) return;
       const data = await res.json();
-      setCards(data.data || []);
-      setPagination(data.pagination);
+      const next = { cards: data.data || [], pagination: data.pagination };
+      setClientCache(cacheKey, next);
+      setCards(next.cards);
+      setPagination(next.pagination);
     } catch {
-      setCards([]);
+      // Keep the last successful data visible while offline or retrying.
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { setCachedCard } from '@/lib/redis';
+import { invalidateCardQueries, setCachedCard } from '@/lib/redis';
 import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import { cards } from '@/lib/schema';
 import { hashPin, isValidPin, nowUnix, verifyPin } from '@/lib/utils';
@@ -116,11 +116,14 @@ export async function POST(
   }
 
   // Proactively warm Redis cache so the first NFC tap is instant (sub-40ms)
-  await setCachedCard(slug, {
-    google_review_url: cleanReviewUrl,
-    business_name: cleanBusinessName,
-    card_id: card.id,
-  });
+  await Promise.all([
+    setCachedCard(slug, {
+      google_review_url: cleanReviewUrl,
+      business_name: cleanBusinessName,
+      card_id: card.id,
+    }),
+    invalidateCardQueries(),
+  ]);
 
   return NextResponse.json({ success: true });
 }

@@ -4,12 +4,26 @@ import { customTemplates } from '@/lib/schema';
 import { desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { getAdminSession } from '@/lib/auth';
+import {
+  deleteCachedValue,
+  getCachedValue,
+  setCachedValue,
+  TEMPLATES_CACHE_KEY,
+} from '@/lib/redis';
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    const cached = await getCachedValue<unknown[]>(TEMPLATES_CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(
+        { templates: cached },
+        { headers: { 'X-TapFlow-Cache': 'HIT-REDIS' } }
+      );
+    }
+
     const dbTemplates = await db
       .select()
       .from(customTemplates)
@@ -29,9 +43,12 @@ export async function GET() {
       updatedAt: t.updatedAt,
     }));
 
-    return NextResponse.json({
-      templates: formattedDbTemplates,
-    });
+    await setCachedValue(TEMPLATES_CACHE_KEY, formattedDbTemplates, 300);
+
+    return NextResponse.json(
+      { templates: formattedDbTemplates },
+      { headers: { 'X-TapFlow-Cache': 'MISS-WARMED' } }
+    );
   } catch (error) {
     console.error('Error fetching templates:', error);
     return NextResponse.json(
@@ -72,6 +89,7 @@ export async function POST(request: NextRequest) {
       createdAt: now,
       updatedAt: now,
     });
+    await deleteCachedValue(TEMPLATES_CACHE_KEY);
 
     return NextResponse.json(
       {

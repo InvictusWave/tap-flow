@@ -16,19 +16,21 @@ import {
   Trash,
 } from '@phosphor-icons/react';
 
+type TemplateOption = CustomTemplateData & { isCustom?: boolean };
+
 export default function TemplatesGalleryPage() {
   const [mockBusiness, setMockBusiness] = useState('Kopi Kenangan');
   const [mockLocation, setMockLocation] = useState('Senopati, Jakarta');
   const [showBranding, setShowBranding] = useState(false);
   const [cardLang, setCardLang] = useState<'en' | 'id'>('en');
-  const [customTemplates, setCustomTemplates] = useState<CustomTemplateData[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<TemplateOption[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/templates')
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.templates) {
-          setCustomTemplates(data.templates.filter((t: any) => t.isCustom));
+          setCustomTemplates(data.templates.filter((t: TemplateOption) => t.isCustom));
         }
       })
       .catch(console.error);
@@ -147,7 +149,7 @@ export default function TemplatesGalleryPage() {
           {/* Branding Toggle */}
           <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Badge "powered by InvictusWave"
+              Badge &quot;powered by InvictusWave&quot;
             </span>
             <input
               type="checkbox"

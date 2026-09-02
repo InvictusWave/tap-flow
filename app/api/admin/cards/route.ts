@@ -2,7 +2,14 @@ import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
 import { count, desc, eq, like, or, sql } from 'drizzle-orm';
 import { generateId, generateSlug, hashPin, isValidPin, nowUnix } from '@/lib/utils';
-import { setCachedCard } from '@/lib/redis';
+import {
+  ADMIN_CACHE_TTL,
+  getCachedValue,
+  getCardQueryCacheVersion,
+  invalidateCardQueries,
+  setCachedCard,
+  setCachedValue,
+} from '@/lib/redis';
 import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import { NextRequest, NextResponse } from 'next/server';
 import { cardOwnerCondition, getAdminSession } from '@/lib/auth';
@@ -18,6 +25,24 @@ export async function GET(request: NextRequest) {
   const template = searchParams.get('template');
   const search = searchParams.get('q')?.trim();
   const offset = (page - 1) * pageSize;
+  const cacheVersion = await getCardQueryCacheVersion();
+  const queryCacheKey = [
+    'admin:cards',
+    cacheVersion,
+    session.role,
+    session.userId,
+    page,
+    pageSize,
+    status ?? '',
+    template ?? '',
+    search ?? '',
+  ].join(':');
+  const cached = await getCachedValue<Record<string, unknown>>(queryCacheKey);
+  if (cached) {
+    return NextResponse.json(cached, {
+      headers: { 'X-TapFlow-Cache': 'HIT-REDIS' },
+    });
+  }
 
   const whereConditions = [];
   const ownerCondition = cardOwnerCondition(session);
@@ -71,7 +96,7 @@ export async function GET(request: NextRequest) {
       .where(whereClause ?? sql`1=1`),
   ]);
 
-  return NextResponse.json({
+  const response = {
     data: rows,
     pagination: {
       page,
@@ -79,6 +104,11 @@ export async function GET(request: NextRequest) {
       total: Number(total),
       totalPages: Math.ceil(Number(total) / pageSize),
     },
+  };
+  await setCachedValue(queryCacheKey, response, ADMIN_CACHE_TTL);
+
+  return NextResponse.json(response, {
+    headers: { 'X-TapFlow-Cache': 'MISS-WARMED' },
   });
 }
 
@@ -145,13 +175,14 @@ export async function POST(request: NextRequest) {
 
   await db.insert(cards).values(newCard);
 
-  if (status === 'active' && newCard.googleReviewUrl) {
-    await setCachedCard(slug, {
+  await Promise.all([
+    invalidateCardQueries(),
+    status === 'active' && newCard.googleReviewUrl ? setCachedCard(slug, {
       google_review_url: newCard.googleReviewUrl,
       business_name: newCard.businessName ?? '',
       card_id: id,
-    });
-  }
+    }) : Promise.resolve(),
+  ]);
 
   return NextResponse.json({
     success: true,

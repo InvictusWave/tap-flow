@@ -2,9 +2,15 @@ import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { count, sql } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { cardOwnerCondition, getAdminSession } from '@/lib/auth';
+import {
+  ADMIN_CACHE_TTL,
+  getCachedValue,
+  getCardQueryCacheVersion,
+  setCachedValue,
+} from '@/lib/redis';
 import CardTable from '@/components/admin/CardTable';
 import {
   CreditCard,
@@ -22,25 +28,34 @@ export default async function AdminDashboardPage() {
   const session = await getAdminSession();
   if (!session) redirect('/admin/login');
   const ownerCondition = cardOwnerCondition(session);
+  const cacheVersion = await getCardQueryCacheVersion();
+  const statsCacheKey = `admin:stats:${cacheVersion}:${session.role}:${session.userId}`;
+  let stats = await getCachedValue<{
+    total: number;
+    active: number;
+    unassigned: number;
+    totalScans: number;
+  }>(statsCacheKey);
 
-  const [
-    [{ total }],
-    [{ active }],
-    [{ unassigned }],
-    [{ totalScans }],
-  ] = await Promise.all([
-    db.select({ total: count() }).from(cards).where(ownerCondition),
-    db.select({ active: count() }).from(cards).where(and(eq(cards.status, 'active'), ownerCondition)),
-    db.select({ unassigned: count() }).from(cards).where(and(eq(cards.status, 'unassigned'), ownerCondition)),
-    db.select({ totalScans: sql<number>`SUM(total_scans)` }).from(cards).where(ownerCondition),
-  ]);
+  if (!stats) {
+    const [result] = await db
+      .select({
+        total: count(),
+        active: sql<number>`SUM(CASE WHEN ${cards.status} = 'active' THEN 1 ELSE 0 END)`,
+        unassigned: sql<number>`SUM(CASE WHEN ${cards.status} = 'unassigned' THEN 1 ELSE 0 END)`,
+        totalScans: sql<number>`SUM(${cards.totalScans})`,
+      })
+      .from(cards)
+      .where(ownerCondition);
 
-  const stats = {
-    total: Number(total),
-    active: Number(active),
-    unassigned: Number(unassigned),
-    totalScans: Number(totalScans ?? 0),
-  };
+    stats = {
+      total: Number(result.total),
+      active: Number(result.active ?? 0),
+      unassigned: Number(result.unassigned ?? 0),
+      totalScans: Number(result.totalScans ?? 0),
+    };
+    await setCachedValue(statsCacheKey, stats, ADMIN_CACHE_TTL);
+  }
 
   return (
     <div className="space-y-8">

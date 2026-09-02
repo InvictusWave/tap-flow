@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import CustomQR from './CustomQR';
 import NfcIconGraphic from './NfcIconGraphic';
 import {
@@ -617,7 +617,7 @@ export default function CanvasRenderer({
           />
         )}
 
-        {(el.type === 'qr' || (el.type as any) === 'qr_code') && (
+        {el.type === 'qr' && (
           <div
             style={{
               backgroundColor: el.backgroundColor || '#ffffff',
@@ -684,7 +684,7 @@ export default function CanvasRenderer({
         )}
 
         {el.type === 'google_logo' && renderGoogleLogo(el)}
-        {(el.type === 'stars' || (el.type as any) === 'google_star') && renderGoogleStars(el)}
+        {el.type === 'stars' && renderGoogleStars(el)}
         {el.type === 'nfc_icon' && (
           <NfcIconGraphic
             variant={el.iconVariant}
@@ -693,7 +693,7 @@ export default function CanvasRenderer({
           />
         )}
 
-        {(el.type === 'svg' || (el.type as any) === 'svg_custom') && el.svgContent && (
+        {el.type === 'svg' && el.svgContent && (
           <div
             className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full pointer-events-none"
             dangerouslySetInnerHTML={{ __html: el.svgContent }}
@@ -720,6 +720,8 @@ export default function CanvasRenderer({
         {el.type === 'image' && (
           <div className="w-full h-full overflow-hidden pointer-events-none" style={{ borderRadius: el.borderRadius ? `${el.borderRadius}px` : 0 }}>
             {el.content ? (
+              // Canvas images may be data URLs, which next/image does not support efficiently.
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={el.content} alt="Element" className="w-full h-full object-cover pointer-events-none" />
             ) : (
               <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-400">

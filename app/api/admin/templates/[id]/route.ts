@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { customTemplates } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { getAdminSession } from '@/lib/auth';
+import { deleteCachedValue, TEMPLATES_CACHE_KEY } from '@/lib/redis';
 
 export async function GET(
   request: NextRequest,
@@ -87,6 +88,7 @@ export async function PUT(
           updatedAt: now,
         })
         .where(eq(customTemplates.id, id));
+      await deleteCachedValue(TEMPLATES_CACHE_KEY);
 
       return NextResponse.json({
         message: 'Template berhasil diperbarui!',
@@ -106,6 +108,7 @@ export async function PUT(
         createdAt: now,
         updatedAt: now,
       });
+      await deleteCachedValue(TEMPLATES_CACHE_KEY);
 
       return NextResponse.json({
         message: 'Template berhasil disimpan sebagai template kustom baru!',
@@ -133,6 +136,7 @@ export async function DELETE(
     const { id } = await params;
 
     await db.delete(customTemplates).where(eq(customTemplates.id, id));
+    await deleteCachedValue(TEMPLATES_CACHE_KEY);
 
     return NextResponse.json({
       message: 'Template kustom berhasil dihapus.',

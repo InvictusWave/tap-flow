@@ -258,16 +258,6 @@ export default function PropertiesPanel({
     }
   };
 
-  // Batch update helpers for all selected elements
-  const handleBatchUpdateAll = (updates: Partial<CanvasElement>) => {
-    if (selectedElements.length === 0) return;
-    if (onUpdateMultipleElements) {
-      onUpdateMultipleElements(selectedElements.map((el) => ({ id: el.id, updates })));
-    } else {
-      selectedElements.forEach((el) => onUpdateElement(el.id, updates));
-    }
-  };
-
   // Preset size helper
   const handleSetPresetSize = (targetSize: number) => {
     if (!element) return;

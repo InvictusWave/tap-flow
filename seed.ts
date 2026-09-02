@@ -19,7 +19,7 @@ async function seed() {
         updatedAt: now,
       });
       console.log(`Inserted ${preset.id}`);
-    } catch (e) {
+    } catch {
       console.log(`Skipped ${preset.id} (might exist)`);
     }
   }

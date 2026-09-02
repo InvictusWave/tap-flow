@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { setCachedCard, deleteCachedCard } from '@/lib/redis';
+import { setCachedCard, deleteCachedCard, invalidateCardQueries } from '@/lib/redis';
 import { cardScans, cards, type NewCard } from '@/lib/schema';
 import { hashPin, isValidPin, nowUnix } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
@@ -92,15 +92,14 @@ export async function PATCH(
   const finalBusinessName = updateData.businessName ?? card.businessName ?? '';
   const finalStatus = updateData.status ?? 'active';
 
-  if (finalStatus === 'active' && finalReviewUrl) {
-    await setCachedCard(card.slug, {
+  await Promise.all([
+    invalidateCardQueries(),
+    finalStatus === 'active' && finalReviewUrl ? setCachedCard(card.slug, {
       google_review_url: finalReviewUrl,
       business_name: finalBusinessName,
       card_id: card.id,
-    });
-  } else {
-    await deleteCachedCard(card.slug);
-  }
+    }) : deleteCachedCard(card.slug),
+  ]);
 
   return NextResponse.json({ success: true, data: updateData });
 }
@@ -128,7 +127,7 @@ export async function DELETE(
   await db.delete(cards).where(eq(cards.id, id));
 
   // Invalidate Redis cache
-  await deleteCachedCard(card.slug);
+  await Promise.all([deleteCachedCard(card.slug), invalidateCardQueries()]);
 
   return NextResponse.json({ success: true, message: 'Card deleted successfully' });
 }

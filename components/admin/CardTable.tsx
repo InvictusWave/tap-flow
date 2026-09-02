@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useDeferredValue, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 import QRExport from './QRExport';
@@ -41,6 +41,11 @@ interface Pagination {
   totalPages: number;
 }
 
+interface TemplateOption {
+  id: string;
+  name: string;
+}
+
 export default function CardTable({ standalone = false }: { standalone?: boolean }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -48,6 +53,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
   const [statusFilter, setStatusFilter] = useState('all');
   const [templateFilter, setTemplateFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -58,7 +64,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [showBulkQrModal, setShowBulkQrModal] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/templates')
@@ -75,7 +81,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
         pageSize: '15',
         status: statusFilter,
         template: templateFilter,
-        ...(searchQuery ? { q: searchQuery } : {}),
+        ...(deferredSearchQuery ? { q: deferredSearchQuery } : {}),
       });
 
       const res = await fetch(`/api/admin/cards?${params.toString()}`);
@@ -87,9 +93,11 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, templateFilter, searchQuery]);
+  }, [page, statusFilter, templateFilter, deferredSearchQuery]);
 
   useEffect(() => {
+    // Fetching is the external synchronization; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCards();
   }, [fetchCards]);
 
@@ -121,10 +129,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
     }
   };
 
-  const [appUrl, setAppUrl] = useState('');
-  useEffect(() => {
-    setAppUrl(window.location.origin);
-  }, []);
+  const [appUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">

@@ -6,17 +6,33 @@ import { db } from '@/lib/db';
 import { adminUsers } from '@/lib/schema';
 import { generateId, nowUnix } from '@/lib/utils';
 import { isAdminExpired } from '@/lib/admin-access';
+import { deleteCachedValue, getCachedValue, setCachedValue } from '@/lib/redis';
+
+const USERS_CACHE_KEY = 'admin:users';
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.role !== 'super_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const cached = await getCachedValue<unknown[]>(USERS_CACHE_KEY);
+  if (cached) {
+    return NextResponse.json(
+      { users: cached },
+      { headers: { 'X-TapFlow-Cache': 'HIT-REDIS' } }
+    );
+  }
+
   const users = await db.query.adminUsers.findMany({
     orderBy: [asc(adminUsers.createdAt)],
     columns: { id: true, name: true, email: true, role: true, active: true, expiresAt: true, createdAt: true },
   });
-  return NextResponse.json({ users: users.map((user) => ({ ...user, expired: isAdminExpired(user.expiresAt) })) });
+  const result = users.map((user) => ({ ...user, expired: isAdminExpired(user.expiresAt) }));
+  await setCachedValue(USERS_CACHE_KEY, result, 60);
+  return NextResponse.json(
+    { users: result },
+    { headers: { 'X-TapFlow-Cache': 'MISS-WARMED' } }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -52,6 +68,7 @@ export async function POST(request: NextRequest) {
       expiresAt: validityDays === null ? null : now + validityDays * 86400,
       createdAt: now,
     });
+    await deleteCachedValue(USERS_CACHE_KEY);
     return NextResponse.json({ success: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Email admin sudah digunakan.' }, { status: 409 });

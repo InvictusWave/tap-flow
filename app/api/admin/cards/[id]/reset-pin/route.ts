@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { deleteCachedCard } from '@/lib/redis';
+import { deleteCachedCard, invalidateCardQueries } from '@/lib/redis';
 import { cards } from '@/lib/schema';
 import { nowUnix } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
@@ -34,7 +34,7 @@ export async function POST(
     .where(eq(cards.id, id));
 
   // Invalidate Redis cache so next tap instantly redirects to activation onboarding
-  await deleteCachedCard(card.slug);
+  await Promise.all([deleteCachedCard(card.slug), invalidateCardQueries()]);
 
   return NextResponse.json({ success: true });
 }

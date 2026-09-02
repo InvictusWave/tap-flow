@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import {
   reviewUrlFromGoogleMapsFeatureId,
   searchGoogleReviewPlaces,
 } from '@/lib/google-review';
+import { getCachedValue, setCachedValue } from '@/lib/redis';
 
 export interface PlaceResult {
   placeId: string;
@@ -11,13 +12,51 @@ export interface PlaceResult {
   googleReviewUrl: string;
 }
 
+type LegacyGooglePlace = {
+  place_id: string;
+  name: string;
+  formatted_address?: string;
+};
+
+type PhotonFeature = {
+  properties?: {
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    district?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+    postcode?: string;
+    osm_id?: string | number;
+  };
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q')?.trim();
+  const query = searchParams.get('q')?.trim().slice(0, 100);
 
   if (!query || query.length < 2) {
     return NextResponse.json({ results: [] });
   }
+
+  const cacheKey = `places:${encodeURIComponent(query.toLocaleLowerCase('id-ID'))}`;
+  const cached = await getCachedValue<PlaceResult[]>(cacheKey);
+  if (cached) {
+    return NextResponse.json(
+      { results: cached },
+      { headers: { 'X-TapFlow-Cache': 'HIT-REDIS' } }
+    );
+  }
+
+  const respond = (results: PlaceResult[]) => {
+    after(() => setCachedValue(cacheKey, results, 3600));
+    return NextResponse.json(
+      { results },
+      { headers: { 'X-TapFlow-Cache': 'MISS-WARMED' } }
+    );
+  };
 
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY;
 
@@ -26,7 +65,7 @@ export async function GET(request: NextRequest) {
     try {
       const results = await searchGoogleReviewPlaces(query, googleApiKey);
       if (results.length > 0) {
-        return NextResponse.json({ results });
+        return respond(results);
       }
     } catch (err) {
       console.error('Google Places API (New) error:', err);
@@ -40,15 +79,15 @@ export async function GET(request: NextRequest) {
         { cache: 'no-store' }
       );
       if (gRes.ok) {
-        const gData = await gRes.json();
-        if (gData.results && gData.results.length > 0) {
-          const results: PlaceResult[] = gData.results.slice(0, 8).map((p: any) => ({
+        const gData = await gRes.json() as { results?: LegacyGooglePlace[] };
+        if (gData.results?.length) {
+          const results: PlaceResult[] = gData.results.slice(0, 8).map((p) => ({
             placeId: p.place_id,
             name: p.name,
             location: p.formatted_address || '',
             googleReviewUrl: `https://search.google.com/local/writereview?placeid=${p.place_id}`,
           }));
-          return NextResponse.json({ results });
+          return respond(results);
         }
       }
     } catch (err) {
@@ -103,7 +142,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (results.length > 0) {
-        return NextResponse.json({ results: results.slice(0, 8) });
+        return respond(results.slice(0, 8));
       }
     }
   } catch (err) {
@@ -121,12 +160,12 @@ export async function GET(request: NextRequest) {
     );
 
     if (photonRes.ok) {
-      const pData = await photonRes.json();
-      if (pData.features && pData.features.length > 0) {
+      const pData = await photonRes.json() as { features?: PhotonFeature[] };
+      if (pData.features?.length) {
         const results: PlaceResult[] = pData.features
-          .filter((f: any) => f.properties?.name)
-          .map((f: any, i: number) => {
-            const p = f.properties;
+          .filter((f) => f.properties?.name)
+          .map((f, i) => {
+            const p = f.properties!;
             const name = p.name || query;
 
             const addressParts = [
@@ -152,7 +191,7 @@ export async function GET(request: NextRequest) {
           });
 
         if (results.length > 0) {
-          return NextResponse.json({ results: results.slice(0, 8) });
+          return respond(results.slice(0, 8));
         }
       }
     }
@@ -171,5 +210,5 @@ export async function GET(request: NextRequest) {
     },
   ];
 
-  return NextResponse.json({ results: fallbackResults });
+  return respond(fallbackResults);
 }

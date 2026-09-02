@@ -3,6 +3,7 @@ import { cards } from '@/lib/schema';
 import { generateId, generateSlug, nowUnix } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/auth';
+import { invalidateCardQueries } from '@/lib/redis';
 
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest) {
 
     await db.insert(cards).values(batch);
   }
+
+  await invalidateCardQueries();
 
   return NextResponse.json({
     success: true,

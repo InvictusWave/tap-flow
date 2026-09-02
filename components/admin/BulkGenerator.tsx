@@ -42,7 +42,6 @@ export default function BulkGenerator() {
 
   const handleDownloadCsv = () => {
     if (!result) return;
-    const appUrl = window.location.origin;
     const headers = ['Slug', 'Redirect URL', 'Activate URL'];
     const rows = result.map((c) => [c.slug, c.url, c.activateUrl]);
     const csv = [headers, ...rows]

@@ -13,6 +13,7 @@ import TopToolbar from '@/components/admin/builder/TopToolbar';
 import LeftSidebar from '@/components/admin/builder/LeftSidebar';
 import CanvasRenderer from '@/components/admin/builder/CanvasRenderer';
 import PropertiesPanel from '@/components/admin/builder/PropertiesPanel';
+import { removeClientCache } from '@/lib/client-cache';
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 
 function BuilderContent() {
@@ -354,6 +355,8 @@ function BuilderContent() {
       if (savedTemplate?.id) {
         setTemplate((prev) => ({ ...prev, id: savedTemplate.id }));
       }
+      removeClientCache('admin:templates:custom');
+      removeClientCache('templates');
 
       setSaveToast({
         type: 'success',

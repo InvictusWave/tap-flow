@@ -5,6 +5,7 @@ import Link from 'next/link';
 import GoogleBusinessSearch, { SelectedPlace } from '@/components/admin/GoogleBusinessSearch';
 import { CustomTemplateData } from '@/types/template-builder';
 import CanvasRenderer from '@/components/admin/builder/CanvasRenderer';
+import { getClientCache, setClientCache } from '@/lib/client-cache';
 import {
   PaintBrushBroad,
   MagnifyingGlass,
@@ -23,14 +24,18 @@ export default function TemplatesGalleryPage() {
   const [mockLocation, setMockLocation] = useState('Senopati, Jakarta');
   const [showBranding, setShowBranding] = useState(false);
   const [cardLang, setCardLang] = useState<'en' | 'id'>('en');
-  const [customTemplates, setCustomTemplates] = useState<TemplateOption[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<TemplateOption[]>(() => {
+    return getClientCache<TemplateOption[]>('admin:templates:custom') ?? [];
+  });
 
   useEffect(() => {
     fetch('/api/admin/templates')
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.templates) {
-          setCustomTemplates(data.templates.filter((t: TemplateOption) => t.isCustom));
+          const list = data.templates.filter((t: TemplateOption) => t.isCustom);
+          setClientCache('admin:templates:custom', list);
+          setCustomTemplates(list);
         }
       })
       .catch(console.error);
@@ -46,7 +51,11 @@ export default function TemplatesGalleryPage() {
     try {
       const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
+        setCustomTemplates((prev) => {
+          const next = prev.filter((t) => t.id !== id);
+          setClientCache('admin:templates:custom', next);
+          return next;
+        });
       } else {
         alert('Gagal menghapus template');
       }

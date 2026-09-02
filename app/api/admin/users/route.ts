@@ -19,7 +19,12 @@ export async function GET() {
   if (cached) {
     return NextResponse.json(
       { users: cached },
-      { headers: { 'X-TapFlow-Cache': 'HIT-REDIS' } }
+      {
+        headers: {
+          'X-TapFlow-Cache': 'HIT-REDIS',
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
     );
   }
 
@@ -31,7 +36,12 @@ export async function GET() {
   await setCachedValue(USERS_CACHE_KEY, result, 60);
   return NextResponse.json(
     { users: result },
-    { headers: { 'X-TapFlow-Cache': 'MISS-WARMED' } }
+    {
+      headers: {
+        'X-TapFlow-Cache': 'MISS-WARMED',
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+      },
+    }
   );
 }
 

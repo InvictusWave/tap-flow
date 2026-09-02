@@ -10,6 +10,7 @@ import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import QRExport from '@/components/admin/QRExport';
 import { CustomTemplateData } from '@/types/template-builder';
 import { DEFAULT_BULK_TEMPLATE_ID, DEFAULT_TEMPLATE_ID, TEMPLATE_PRESETS } from '@/lib/template-presets';
+import { getClientCache, setClientCache, invalidateClientCachePrefix } from '@/lib/client-cache';
 import {
   PlusCircle,
   Lightning,
@@ -56,7 +57,9 @@ function CreateCardContent() {
   const [singleMessage, setSingleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [createdCard, setCreatedCard] = useState<CreatedCard | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [customTemplatesList, setCustomTemplatesList] = useState<TemplateOption[]>([]);
+  const [customTemplatesList, setCustomTemplatesList] = useState<TemplateOption[]>(() => {
+    return getClientCache<TemplateOption[]>('admin:templates:custom') ?? [];
+  });
 
   // Bulk Generator State
   const [bulkCount, setBulkCount] = useState(25);
@@ -76,7 +79,9 @@ function CreateCardContent() {
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.templates) {
-          setCustomTemplatesList(data.templates.filter((t: TemplateOption) => t.isCustom));
+          const list = data.templates.filter((t: TemplateOption) => t.isCustom);
+          setClientCache('admin:templates:custom', list);
+          setCustomTemplatesList(list);
         }
       })
       .catch(console.error);
@@ -129,6 +134,7 @@ function CreateCardContent() {
       }
 
       setCreatedCard(data.data);
+      invalidateClientCachePrefix('cards:');
       setSingleMessage({
         type: 'success',
         text: `Kartu "${slug}" berhasil dibuat dan siap digunakan!`,
@@ -175,6 +181,7 @@ function CreateCardContent() {
       }
 
       setBulkResult(data.cards);
+      invalidateClientCachePrefix('cards:');
     } catch {
       setBulkError('Gagal terhubung ke server.');
     } finally {

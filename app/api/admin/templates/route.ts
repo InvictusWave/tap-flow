@@ -20,7 +20,12 @@ export async function GET() {
     if (cached) {
       return NextResponse.json(
         { templates: cached },
-        { headers: { 'X-TapFlow-Cache': 'HIT-REDIS' } }
+        {
+          headers: {
+            'X-TapFlow-Cache': 'HIT-REDIS',
+            'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+          },
+        }
       );
     }
 
@@ -47,7 +52,12 @@ export async function GET() {
 
     return NextResponse.json(
       { templates: formattedDbTemplates },
-      { headers: { 'X-TapFlow-Cache': 'MISS-WARMED' } }
+      {
+        headers: {
+          'X-TapFlow-Cache': 'MISS-WARMED',
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
+      }
     );
   } catch (error) {
     console.error('Error fetching templates:', error);

@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
   const cached = await getCachedValue<Record<string, unknown>>(queryCacheKey);
   if (cached) {
     return NextResponse.json(cached, {
-      headers: { 'X-TapFlow-Cache': 'HIT-REDIS' },
+      headers: {
+        'X-TapFlow-Cache': 'HIT-REDIS',
+        'Cache-Control': 'private, max-age=15, stale-while-revalidate=60',
+      },
     });
   }
 
@@ -108,7 +111,10 @@ export async function GET(request: NextRequest) {
   await setCachedValue(queryCacheKey, response, ADMIN_CACHE_TTL);
 
   return NextResponse.json(response, {
-    headers: { 'X-TapFlow-Cache': 'MISS-WARMED' },
+    headers: {
+      'X-TapFlow-Cache': 'MISS-WARMED',
+      'Cache-Control': 'private, max-age=15, stale-while-revalidate=60',
+    },
   });
 }
 

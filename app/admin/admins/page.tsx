@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminHeader from '@/components/admin/AdminHeader';
+import { getClientCache, setClientCache } from '@/lib/client-cache';
 
 interface AdminRow {
   id: string;
@@ -13,21 +14,35 @@ interface AdminRow {
   expired: boolean;
 }
 
+const ADMIN_USERS_CACHE_KEY = 'admin:users:list';
+
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminRow[]>([]);
+  const [users, setUsers] = useState<AdminRow[]>(() => {
+    return getClientCache<AdminRow[]>(ADMIN_USERS_CACHE_KEY) ?? [];
+  });
   const [form, setForm] = useState({ name: '', email: '', password: '', validityDays: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function loadUsers() {
     const response = await fetch('/api/admin/users');
-    if (response.ok) setUsers((await response.json()).users);
+    if (response.ok) {
+      const data = await response.json();
+      const userList = data?.users || [];
+      setClientCache(ADMIN_USERS_CACHE_KEY, userList);
+      setUsers(userList);
+    }
   }
 
   useEffect(() => {
     fetch('/api/admin/users')
       .then((response) => response.ok ? response.json() : null)
-      .then((data) => { if (data) setUsers(data.users); });
+      .then((data) => {
+        if (data?.users) {
+          setClientCache(ADMIN_USERS_CACHE_KEY, data.users);
+          setUsers(data.users);
+        }
+      });
   }, []);
 
   async function handleSubmit(event: React.FormEvent) {

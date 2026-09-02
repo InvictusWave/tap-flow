@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/utils';
 import QRExport from './QRExport';
 import EditCardModal from './EditCardModal';
 import NfcWriterModal from './NfcWriterModal';
-import { getClientCache, setClientCache } from '@/lib/client-cache';
+import { getClientCache, setClientCache, invalidateClientCachePrefix } from '@/lib/client-cache';
 import {
   Plus,
   DownloadSimple,
@@ -93,26 +93,25 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
   }, []);
 
   const fetchCards = useCallback(async () => {
-    setLoading(true);
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: '15',
+      status: statusFilter,
+      template: templateFilter,
+      ...(deferredSearchQuery ? { q: deferredSearchQuery } : {}),
+    });
+    const cacheKey = cardsCacheKey(params.toString());
+    const cached = getClientCache<CachedCardData>(cacheKey);
+
+    if (cached) {
+      setCards(cached.cards);
+      setPagination(cached.pagination);
+      setLoading(false);
+    } else if (cards.length === 0) {
+      setLoading(true);
+    }
+
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: '15',
-        status: statusFilter,
-        template: templateFilter,
-        ...(deferredSearchQuery ? { q: deferredSearchQuery } : {}),
-      });
-      const cacheKey = cardsCacheKey(params.toString());
-      const cached = getClientCache<CachedCardData>(cacheKey);
-
-      if (cached) {
-        setCards(cached.cards);
-        setPagination(cached.pagination);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
-
       const res = await fetch(`/api/admin/cards?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
@@ -125,7 +124,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, templateFilter, deferredSearchQuery]);
+  }, [page, statusFilter, templateFilter, deferredSearchQuery, cards.length]);
 
   useEffect(() => {
     // Fetching is the external synchronization; state updates happen after the request resolves.
@@ -140,6 +139,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
     try {
       const res = await fetch(`/api/admin/cards/${card.id}/reset-pin`, { method: 'POST' });
       if (res.ok) {
+        invalidateClientCachePrefix('cards:');
         await fetchCards();
       }
     } finally {
@@ -154,6 +154,7 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
     try {
       const res = await fetch(`/api/admin/cards/${card.id}`, { method: 'DELETE' });
       if (res.ok) {
+        invalidateClientCachePrefix('cards:');
         await fetchCards();
       }
     } finally {
@@ -493,7 +494,10 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
         <EditCardModal
           card={editCard}
           onClose={() => setEditCard(null)}
-          onSaved={fetchCards}
+          onSaved={() => {
+            invalidateClientCachePrefix('cards:');
+            fetchCards();
+          }}
         />
       )}
       {showBulkQrModal && selectedCards.length > 0 && (

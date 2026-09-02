@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Broadcast,
@@ -32,22 +32,12 @@ interface NfcWriterModalProps {
 export default function NfcWriterModal({ card, appUrl, onClose }: NfcWriterModalProps) {
   const [copiedActivate, setCopiedActivate] = useState(false);
   const [copiedDirect, setCopiedDirect] = useState(false);
-  const [nfcSupported, setNfcSupported] = useState<boolean>(false);
   const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [nfcMessage, setNfcMessage] = useState<string>('');
-  const [writingTarget, setWritingTarget] = useState<'activate' | 'direct'>('activate');
+  const nfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window;
 
   const activateUrl = `${appUrl}/activate/${card.slug}`;
   const directUrl = `${appUrl}/c/${card.slug}`;
-
-  // Check Web NFC support on client side
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'NDEFReader' in window) {
-      setNfcSupported(true);
-    } else {
-      setNfcSupported(false);
-    }
-  }, []);
 
   // Copy helpers
   const handleCopy = (text: string, type: 'activate' | 'direct') => {
@@ -70,11 +60,10 @@ export default function NfcWriterModal({ card, appUrl, onClose }: NfcWriterModal
     }
 
     try {
-      setWritingTarget(targetType);
       setNfcStatus('scanning');
       setNfcMessage('Dekatkan tag NFC atau kartu ke bagian belakang perangkat Anda sekarang...');
 
-      const NDEFReaderClass = (window as any).NDEFReader;
+      const NDEFReaderClass = (window as typeof window & { NDEFReader: new () => { write: (payload: unknown) => Promise<void> } }).NDEFReader;
       const ndef = new NDEFReaderClass();
 
       // Write NDEF record with URL type
@@ -91,23 +80,23 @@ export default function NfcWriterModal({ card, appUrl, onClose }: NfcWriterModal
       setNfcMessage(
         `Sukses! Link ${targetType === 'activate' ? 'Aktivasi' : 'Direct Review'} berhasil diprogram ke tag NFC.`
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('NFC Write Error:', err);
       setNfcStatus('error');
-      if (err.name === 'NotAllowedError') {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setNfcMessage('Izin akses NFC ditolak atau dinonaktifkan di pengaturan browser.');
-      } else if (err.name === 'NotSupportedError') {
+      } else if (err instanceof DOMException && err.name === 'NotSupportedError') {
         setNfcMessage('Perangkat ini tidak memiliki sensor hardware NFC.');
       } else {
-        setNfcMessage(err.message || 'Gagal menulis ke tag NFC. Pastikan tag tidak terkunci.');
+        setNfcMessage(err instanceof Error ? err.message : 'Gagal menulis ke tag NFC. Pastikan tag tidak terkunci.');
       }
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+        className="m-auto flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -135,7 +124,7 @@ export default function NfcWriterModal({ card, appUrl, onClose }: NfcWriterModal
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Card Info Banner */}
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
             <div>
@@ -361,7 +350,7 @@ export default function NfcWriterModal({ card, appUrl, onClose }: NfcWriterModal
                   <span>Cara Memprogram Chip NFC di Perangkat Ini:</span>
                 </p>
                 <p>
-                  1. Klik tombol <strong>"Salin URL"</strong> di atas.
+                  1. Klik tombol <strong>&quot;Salin URL&quot;</strong> di atas.
                 </p>
                 <p>
                   2. Buka aplikasi penulis NFC di HP Anda (seperti <em>NFC Tools</em> atau <em>NFC TagWriter</em> by NXP).

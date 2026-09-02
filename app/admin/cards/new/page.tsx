@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import CanvasRenderer from '@/components/admin/builder/CanvasRenderer';
 import GoogleBusinessSearch, { SelectedPlace } from '@/components/admin/GoogleBusinessSearch';
 import { generateSlug } from '@/lib/utils';
 import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import QRExport from '@/components/admin/QRExport';
 import { CustomTemplateData } from '@/types/template-builder';
+import { DEFAULT_BULK_TEMPLATE_ID, DEFAULT_TEMPLATE_ID, TEMPLATE_PRESETS } from '@/lib/template-presets';
 import {
   PlusCircle,
   Lightning,
@@ -21,50 +23,57 @@ import {
 } from '@phosphor-icons/react';
 
 export default function CreateCardPage() {
+  type TemplateOption = CustomTemplateData & { isCustom?: boolean };
+  type CreatedCard = {
+    id: string;
+    slug: string;
+    businessName: string | null;
+    location: string | null;
+    template: string | null;
+    status: 'active' | 'unassigned';
+    totalScans: number;
+  };
+  type BulkCard = {
+    slug: string;
+    url: string;
+    activateUrl: string;
+    template: string;
+  };
+
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
 
   // Single Card Form State
-  const [slug, setSlug] = useState('');
+  const [slug, setSlug] = useState(() => generateSlug(8));
   const [businessName, setBusinessName] = useState('');
   const [location, setLocation] = useState('');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
   const [pin, setPin] = useState('');
   const [showBranding, setShowBranding] = useState(false);
   const [cardLang, setCardLang] = useState<'en' | 'id'>('en');
-  const [selectedTemplate, setSelectedTemplate] = useState('google_quad');
-  
-  useEffect(() => {
-    setSlug(generateSlug(8));
-    
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const t = params.get('template');
-      if (t) {
-        setSelectedTemplate(t);
-      }
-    }
-  }, []);
+  const [selectedTemplate, setSelectedTemplate] = useState(() => searchParams.get('template') || DEFAULT_TEMPLATE_ID);
   const [loadingSingle, setLoadingSingle] = useState(false);
   const [singleMessage, setSingleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [createdCard, setCreatedCard] = useState<any | null>(null);
+  const [createdCard, setCreatedCard] = useState<CreatedCard | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [customTemplatesList, setCustomTemplatesList] = useState<CustomTemplateData[]>([]);
+  const [customTemplatesList, setCustomTemplatesList] = useState<TemplateOption[]>([]);
 
   // Bulk Generator State
   const [bulkCount, setBulkCount] = useState(25);
-  const [bulkTemplate, setBulkTemplate] = useState('google_quad');
+  const [bulkTemplate, setBulkTemplate] = useState(DEFAULT_BULK_TEMPLATE_ID);
   const [bulkLocation, setBulkLocation] = useState('');
-  const [bulkBusinessName, setBulkBusinessName] = useState('');
   const [loadingBulk, setLoadingBulk] = useState(false);
-  const [bulkResult, setBulkResult] = useState<any[] | null>(null);
+  const [bulkResult, setBulkResult] = useState<BulkCard[] | null>(null);
   const [bulkError, setBulkError] = useState('');
+  const [appUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
+  const availableTemplates = [...TEMPLATE_PRESETS, ...customTemplatesList];
 
   useEffect(() => {
     fetch('/api/admin/templates')
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.templates) {
-          setCustomTemplatesList(data.templates.filter((t: any) => t.isCustom));
+          setCustomTemplatesList(data.templates.filter((t: TemplateOption) => t.isCustom));
         }
       })
       .catch(console.error);
@@ -152,7 +161,6 @@ export default function CreateCardPage() {
           count: bulkCount,
           template: bulkTemplate,
           location: bulkLocation,
-          businessName: bulkBusinessName,
         }),
       });
 
@@ -186,11 +194,6 @@ export default function CreateCardPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const [appUrl, setAppUrl] = useState('');
-  useEffect(() => {
-    setAppUrl(window.location.origin);
-  }, []);
 
   return (
     <div className="space-y-8 max-w-6xl">
@@ -312,8 +315,7 @@ export default function CreateCardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {/* Custom Studio Templates */}
-                  {customTemplatesList.map((ct) => {
+                  {availableTemplates.map((ct) => {
                     const isSelected = selectedTemplate === ct.id;
                     return (
                       <button
@@ -331,11 +333,11 @@ export default function CreateCardPage() {
                             {ct.name}
                           </span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-blue-600 text-white">
-                            Studio Custom
+                            {ct.isCustom ? 'Studio Custom' : 'Preset'}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                          Desain kustom Anda ({ct.elements.length} elemen)
+                          {ct.isCustom ? 'Desain kustom Anda' : 'Template bawaan'} ({ct.elements.length} elemen)
                         </p>
                       </button>
                     );
@@ -514,14 +516,14 @@ export default function CreateCardPage() {
                   Live Card Preview
                 </span>
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                  {customTemplatesList.find((t) => t.id === selectedTemplate)?.name || 'Custom Studio Template'} ({cardLang.toUpperCase()})
+                  {availableTemplates.find((t) => t.id === selectedTemplate)?.name || 'Template'} ({cardLang.toUpperCase()})
                 </span>
               </div>
 
               {/* Card Preview Component */}
               <div className="p-4 rounded-3xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-inner flex items-center justify-center min-h-[380px] overflow-hidden">
                 {(() => {
-                  const activeTemplate = customTemplatesList.find((t) => t.id === selectedTemplate);
+                  const activeTemplate = availableTemplates.find((t) => t.id === selectedTemplate);
                   if (!activeTemplate) return null;
                   
                   return (
@@ -612,7 +614,7 @@ export default function CreateCardPage() {
                 onChange={(e) => setBulkTemplate(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               >
-                {customTemplatesList.map((ct) => (
+                {availableTemplates.map((ct) => (
                   <option key={ct.id} value={ct.id}>
                     {ct.name}
                   </option>

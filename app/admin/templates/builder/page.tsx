@@ -25,15 +25,9 @@ function BuilderContent() {
   // Active Template on Canvas
   const [template, setTemplate] = useState<CustomTemplateData>({
     ...TEMPLATE_PRESETS[0],
-    id: 'custom-stand',
+    id: `custom-${nanoid(8)}`,
     name: 'Desain Stand Baru',
   });
-
-  useEffect(() => {
-    if (!templateIdParam) {
-      setTemplate(prev => ({ ...prev, id: `custom-${nanoid(8)}` }));
-    }
-  }, [templateIdParam]);
 
   // Selected Elements (Multi-select IDs)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -59,7 +53,7 @@ function BuilderContent() {
         if (res.ok) {
           const data = await res.json();
           const list: CustomTemplateData[] = data.templates || [];
-          setCustomTemplatesList(list.filter((t: any) => t.isCustom));
+          setCustomTemplatesList(list.filter((t) => (t as CustomTemplateData & { isCustom?: boolean }).isCustom));
 
           if (templateIdParam) {
             const found = list.find((t) => t.id === templateIdParam);
@@ -356,8 +350,9 @@ function BuilderContent() {
       }
 
       const data = await res.json();
-      if (data.template?.id) {
-        setTemplate((prev) => ({ ...prev, id: data.template.id }));
+      const savedTemplate = data.template ?? data.data;
+      if (savedTemplate?.id) {
+        setTemplate((prev) => ({ ...prev, id: savedTemplate.id }));
       }
 
       setSaveToast({
@@ -365,10 +360,10 @@ function BuilderContent() {
         message: 'Template kustom berhasil disimpan ke database!',
       });
       setTimeout(() => setSaveToast(null), 4000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSaveToast({
         type: 'error',
-        message: err.message || 'Terjadi kesalahan saat menyimpan',
+        message: err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan',
       });
     } finally {
       setSaving(false);
@@ -381,7 +376,7 @@ function BuilderContent() {
       : null;
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950 font-sans">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-slate-100 dark:bg-slate-950 font-sans">
       {/* Top Toolbar */}
       <TopToolbar
         templateName={template.name}
@@ -425,7 +420,7 @@ function BuilderContent() {
       )}
 
       {/* Main Studio 3-Column Layout: Left Tools | Center Canvas Workspace | Right Inspector */}
-      <div className="flex-1 flex w-full h-[calc(100vh-64px)] overflow-hidden relative">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Left Tools Sidebar */}
         <LeftSidebar
           onAddElement={handleAddElement}
@@ -436,7 +431,7 @@ function BuilderContent() {
 
         {/* Center Canvas Workspace */}
         <main
-          className="flex-1 overflow-auto flex items-center justify-center p-8 sm:p-12 relative bg-slate-200/70 dark:bg-slate-950"
+          className="relative flex flex-1 items-center justify-center overflow-auto bg-slate-200/70 p-4 sm:p-8 lg:p-12 dark:bg-slate-950"
           style={{
             backgroundImage:
               'radial-gradient(circle, rgba(148, 163, 184, 0.15) 1px, transparent 1px)',

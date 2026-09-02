@@ -1,8 +1,11 @@
-import { CanvasElement, CustomTemplateData } from '@/types/template-builder';
+import { CustomTemplateData } from '@/types/template-builder';
+
+export const DEFAULT_TEMPLATE_ID = 'google_quad';
+export const DEFAULT_BULK_TEMPLATE_ID = 'premium_black';
 
 export const TEMPLATE_PRESETS: CustomTemplateData[] = [
   {
-    id: 'preset-google-quad',
+    id: DEFAULT_TEMPLATE_ID,
     name: 'Google Signature Quad-Color Stand',
     aspect: 'square',
     width: 500,
@@ -196,7 +199,7 @@ export const TEMPLATE_PRESETS: CustomTemplateData[] = [
     ],
   },
   {
-    id: 'preset-glossy-black',
+    id: DEFAULT_BULK_TEMPLATE_ID,
     name: 'Glossy Black Acrylic Plaque',
     aspect: 'square',
     width: 500,

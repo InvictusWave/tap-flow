@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { CanvasElement, CustomTemplateData, NfcIconVariant } from '@/types/template-builder';
-import { TEMPLATE_PRESETS } from '@/lib/template-presets';
 import { nanoid } from 'nanoid';
 import {
   Palette,
@@ -114,6 +114,19 @@ export default function LeftSidebar({
       zIndex: 10,
     });
     setRawSvgInput('');
+  };
+
+  const handleAddAssetImage = (src: string, width = 120, height = 120) => {
+    onAddElement({
+      id: `img-${nanoid(6)}`,
+      type: 'image',
+      content: src,
+      x: 190,
+      y: 190,
+      width,
+      height,
+      zIndex: 10,
+    });
   };
 
   // Helper to add Google elements
@@ -492,6 +505,19 @@ export default function LeftSidebar({
                     <p className="text-[10px] text-slate-500">Target tempel lingkaran</p>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => handleAddAssetImage('/assets/contactless-payment.svg', 84, 84)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 p-1">
+                    <Image src="/assets/contactless-payment.svg" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-xs">Contactless Payment Mark</p>
+                    <p className="text-[10px] text-slate-500">Opsi NFC dari SVG yang Anda kirim</p>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -502,7 +528,7 @@ export default function LeftSidebar({
                 <span>Simpan Elemen SVG Kustom</span>
               </span>
               <p className="text-[11px] text-slate-400">
-                Tempel kode XML `<svg>...</svg>` untuk dimasukkan sebagai elemen vektor di kanvas:
+                Tempel kode XML `&lt;svg&gt;...&lt;/svg&gt;` untuk dimasukkan sebagai elemen vektor di kanvas:
               </p>
               <textarea
                 rows={3}
@@ -548,8 +574,21 @@ export default function LeftSidebar({
                   </svg>
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="font-bold text-xs">Official Google "G" Logo</p>
+                  <p className="font-bold text-xs">Official Google &quot;G&quot; Logo</p>
                   <p className="text-[11px] text-slate-500">4-Color Vector Badge</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleAddAssetImage('/assets/google-new-seeklogo.png', 120, 120)}
+                className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
+                  <Image src="/assets/google-new-seeklogo.png" alt="" width={32} height={32} className="h-full w-full object-contain" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="font-bold text-xs">Google &quot;G&quot; Logo PNG</p>
+                  <p className="text-[11px] text-slate-500">Contoh logo dari file referensi Anda</p>
                 </div>
               </button>
 
@@ -645,7 +684,7 @@ export default function LeftSidebar({
                 onClick={() => handleAddDividerOr('OR')}
                 className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 text-left transition-colors"
               >
-                <p className="font-bold text-xs">Vertical Divider with "OR"</p>
+                <p className="font-bold text-xs">Vertical Divider with &quot;OR&quot;</p>
                 <p className="text-[11px] text-slate-500">Garis pemisah vertikal TAP | OR | SCAN</p>
               </button>
 
@@ -653,7 +692,7 @@ export default function LeftSidebar({
                 onClick={() => handleAddDividerOr('ATAU')}
                 className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 text-left transition-colors"
               >
-                <p className="font-bold text-xs">Vertical Divider with "ATAU"</p>
+                <p className="font-bold text-xs">Vertical Divider with &quot;ATAU&quot;</p>
                 <p className="text-[11px] text-slate-500">Garis pemisah vertikal TAP | ATAU | SCAN</p>
               </button>
             </div>

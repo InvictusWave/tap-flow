@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import CanvasRenderer from './builder/CanvasRenderer';
 import { Printer, X, Copy } from '@phosphor-icons/react';
+import { DEFAULT_TEMPLATE_ID, TEMPLATE_PRESETS } from '@/lib/template-presets';
+import { CustomTemplateData } from '@/types/template-builder';
 
 interface CardData {
   id: string;
@@ -20,15 +22,27 @@ interface Props {
   onClose: () => void;
 }
 
+type TemplateOption = {
+  id: string;
+  name: string;
+  aspect: 'square' | 'vertical' | 'horizontal';
+  width: number;
+  height: number;
+  background: string;
+  elements: CustomTemplateData['elements'];
+  isCustom?: boolean;
+};
+
 export default function QRExport({ cards, appUrl, onClose }: Props) {
   const card = cards[0]; // For preview and single export
-  const [selectedTemplate, setSelectedTemplate] = useState(card?.template || 'google_quad');
+  const [selectedTemplate, setSelectedTemplate] = useState(card?.template || DEFAULT_TEMPLATE_ID);
   const [showBranding, setShowBranding] = useState(false);
   const [cardLang, setCardLang] = useState<'en' | 'id'>('en');
   const redirectUrl = `${appUrl}/c/${card.slug}`;
   const printAreaRef = useRef<HTMLDivElement>(null);
 
-  const [customTemplatesList, setCustomTemplatesList] = useState<any[]>([]);
+  const [customTemplatesList, setCustomTemplatesList] = useState<TemplateOption[]>([]);
+  const availableTemplates = [...TEMPLATE_PRESETS, ...customTemplatesList];
 
   useEffect(() => {
     fetch('/api/admin/templates')
@@ -37,9 +51,8 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
       .catch(console.error);
   }, []);
 
-  const currentTemplate = customTemplatesList.find((t) => t.id === selectedTemplate);
+  const currentTemplate = availableTemplates.find((t) => t.id === selectedTemplate);
   const aspect = currentTemplate?.aspect || 'square';
-  const size = aspect === 'vertical' ? 'md' : 'print';
   const isVertical = aspect === 'vertical';
 
   const [isExporting, setIsExporting] = useState(false);
@@ -86,10 +99,10 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl my-8">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/70 p-4 backdrop-blur-xs">
+      <div className="relative m-auto flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-800 sm:px-8">
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">
               Cetak & Desain Kartu TapFlow
@@ -106,6 +119,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
           </button>
         </div>
 
+        <div className="flex-1 overflow-y-auto px-6 pb-6 sm:px-8 sm:pb-8">
         {/* Controls: Template, Language, & Branding */}
         <div className="mt-4 space-y-3">
           <div>
@@ -113,7 +127,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
               Pilih Desain & Ukuran
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {customTemplatesList.map((tmpl) => (
+              {availableTemplates.map((tmpl) => (
                 <button
                   key={tmpl.id}
                   type="button"
@@ -125,7 +139,9 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
                   }`}
                 >
                   <p className="font-bold text-xs truncate">{tmpl.name}</p>
-                  <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{tmpl.aspect}</span>
+                  <span className="mt-0.5 block text-[10px] font-mono text-slate-400">
+                    {tmpl.aspect} {'isCustom' in tmpl && tmpl.isCustom ? '· Custom' : '· Preset'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -166,7 +182,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
             {/* Branding Toggle */}
             <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
               <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Badge "InvictusWave"
+                Badge &quot;InvictusWave&quot;
               </span>
               <input
                 type="checkbox"
@@ -182,7 +198,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
         <div className="my-5 flex flex-col items-center justify-center p-6 rounded-3xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-inner min-h-[360px] overflow-hidden">
           <div ref={printAreaRef}>
             {(() => {
-              const activeTemplate = customTemplatesList.find(t => t.id === selectedTemplate);
+              const activeTemplate = availableTemplates.find((t) => t.id === selectedTemplate);
               if (!activeTemplate) return null;
               
               return (
@@ -225,8 +241,8 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
 
         {/* Bulk Hidden Render Container (for PNG Export) */}
         <div style={{ position: 'absolute', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }} id="bulk-export-container">
-          {cards.map((c, i) => {
-            const activeTemplate = customTemplatesList.find(t => t.id === selectedTemplate);
+          {cards.map((c) => {
+            const activeTemplate = availableTemplates.find((t) => t.id === selectedTemplate);
             if (!activeTemplate) return null;
             return (
               <div key={c.id} id={`export-card-${c.id}`} className="bg-transparent mb-4 overflow-hidden" style={{ width: isVertical ? 421 : 500, height: isVertical ? 670 : 500 }}>
@@ -248,7 +264,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center gap-3 mt-6">
+        <div className="mt-6 flex items-center gap-3">
           <button
             onClick={handleExportPNG}
             disabled={isExporting}
@@ -265,6 +281,7 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
           >
             Tutup
           </button>
+        </div>
         </div>
       </div>
     </div>

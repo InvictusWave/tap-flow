@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         {/* Main Content Area */}
         <main className="flex-1 lg:pl-64 min-w-0 flex flex-col min-h-screen">
           {isStudioBuilder ? (
-            <div className="flex-1 w-full h-screen flex flex-col overflow-hidden">
+            <div className="flex-1 w-full h-[100dvh] min-h-0 flex flex-col overflow-hidden">
               {children}
             </div>
           ) : (

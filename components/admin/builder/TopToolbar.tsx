@@ -59,7 +59,7 @@ export default function TopToolbar({
   onMockBusinessNameChange,
 }: TopToolbarProps) {
   return (
-    <header className="h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0 z-30">
+    <header className="sticky top-0 z-40 h-16 shrink-0 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:px-6 flex items-center justify-between gap-4">
       {/* Left: Back & Template Name */}
       <div className="flex items-center gap-3 min-w-0">
         <Link
@@ -208,16 +208,10 @@ export default function TopToolbar({
         <button
           onClick={onSave}
           disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-blue-700 hover:shadow-lg disabled:bg-slate-400 sm:text-sm"
         >
-          {saving ? (
-            <span>Menyimpan...</span>
-          ) : (
-            <>
-              <FloppyDisk size={16} weight="bold" />
-              <span>Simpan Template</span>
-            </>
-          )}
+          <FloppyDisk size={16} weight="bold" />
+          <span>{saving ? 'Menyimpan...' : 'Simpan'}</span>
         </button>
       </div>
     </header>

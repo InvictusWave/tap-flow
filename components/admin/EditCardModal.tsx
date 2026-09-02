@@ -6,6 +6,7 @@ import GoogleBusinessSearch, { SelectedPlace } from './GoogleBusinessSearch';
 import { X, MagnifyingGlass } from '@phosphor-icons/react';
 import { CustomTemplateData } from '@/types/template-builder';
 import CanvasRenderer from './builder/CanvasRenderer';
+import { DEFAULT_TEMPLATE_ID, TEMPLATE_PRESETS } from '@/lib/template-presets';
 
 interface CardData {
   id: string;
@@ -24,25 +25,27 @@ interface EditCardModalProps {
   onSaved: () => void;
 }
 
+type TemplateOption = CustomTemplateData & { isCustom?: boolean };
+
 export default function EditCardModal({ card, onClose, onSaved }: EditCardModalProps) {
   const [businessName, setBusinessName] = useState(card.businessName || '');
   const [location, setLocation] = useState(card.location || '');
   const [googleReviewUrl, setGoogleReviewUrl] = useState(card.googleReviewUrl || '');
-  const [template, setTemplate] = useState(card.template || 'google_quad');
+  const [template, setTemplate] = useState(card.template || DEFAULT_TEMPLATE_ID);
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState<'active' | 'unassigned'>(card.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [customTemplatesList, setCustomTemplatesList] = useState<CustomTemplateData[]>([]);
-  const [appUrl, setAppUrl] = useState('');
+  const [customTemplatesList, setCustomTemplatesList] = useState<TemplateOption[]>([]);
+  const [appUrl] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
+  const availableTemplates = [...TEMPLATE_PRESETS, ...customTemplatesList];
 
   useEffect(() => {
-    setAppUrl(window.location.origin);
     fetch('/api/admin/templates')
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.templates) {
-          setCustomTemplatesList(data.templates.filter((t: any) => t.isCustom));
+          setCustomTemplatesList(data.templates.filter((t: TemplateOption) => t.isCustom));
         }
       })
       .catch(console.error);
@@ -89,9 +92,9 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-7 my-8">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
+      <div className="relative m-auto flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-800">
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">
               Edit Data Kartu
@@ -108,16 +111,17 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
           </button>
         </div>
 
-        {/* Google Places search helper inside edit modal */}
-        <div className="mt-4 p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200 mb-1.5 flex items-center gap-1.5">
-            <MagnifyingGlass size={14} weight="bold" />
-            <span>Cari & Update via Google Maps:</span>
-          </label>
-          <GoogleBusinessSearch onSelect={handlePlaceSelect} placeholder="Ketik nama bisnis untuk auto-update..." />
-        </div>
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          {/* Google Places search helper inside edit modal */}
+          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+            <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
+              <MagnifyingGlass size={14} weight="bold" />
+              <span>Cari & Update via Google Maps:</span>
+            </label>
+            <GoogleBusinessSearch onSelect={handlePlaceSelect} placeholder="Ketik nama bisnis untuk auto-update..." />
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
               Nama Bisnis
@@ -166,9 +170,12 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
               onChange={(e) => setTemplate(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-4"
             >
-              {customTemplatesList.map((ct) => (
+              {availableTemplates.map((ct) => (
                 <option key={ct.id} value={ct.id}>
-                  {ct.name}
+                  {ct.name}{' '}
+                  {'isCustom' in ct && (ct as CustomTemplateData & { isCustom?: boolean }).isCustom
+                    ? '· Custom'
+                    : '· Preset'}
                 </option>
               ))}
             </select>
@@ -176,7 +183,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
             {/* Template Preview */}
             <div className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-inner">
               {(() => {
-                const activeTemplate = customTemplatesList.find(ct => ct.id === template);
+                const activeTemplate = availableTemplates.find((ct) => ct.id === template);
                 if (!activeTemplate) return null;
                 
                 return (
@@ -233,7 +240,7 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-3 dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
@@ -249,7 +256,8 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
               {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

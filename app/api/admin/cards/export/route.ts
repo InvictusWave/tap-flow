@@ -2,13 +2,18 @@ import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
 import { desc } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
+import { cardOwnerCondition, getAdminSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') ?? 'csv';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
   const allCards = await db.query.cards.findMany({
+    where: cardOwnerCondition(session),
     orderBy: [desc(cards.createdAt)],
     columns: {
       id: true,

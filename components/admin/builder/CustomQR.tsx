@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import type QRCodeStyling from 'qr-code-styling';
+import type { CornerDotType, CornerSquareType, DotType } from 'qr-code-styling';
 
 // We dynamically import to avoid SSR issues with canvas/window
 export default function CustomQR({ 
@@ -10,8 +12,8 @@ export default function CustomQR({
   height = 200,
 }: { 
   data: string;
-  dotStyle?: string;
-  cornerStyle?: string;
+  dotStyle?: DotType;
+  cornerStyle?: CornerSquareType;
   color?: string;
   width?: number;
   height?: number;
@@ -19,11 +21,12 @@ export default function CustomQR({
   const ref = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    let qrCode: any;
+    let qrCode: QRCodeStyling;
     
     const renderQR = async () => {
       try {
         const QRCodeStyling = (await import('qr-code-styling')).default;
+        const cornerDotStyle: CornerDotType = cornerStyle === 'extra-rounded' ? 'dot' : cornerStyle;
         qrCode = new QRCodeStyling({
           width,
           height,
@@ -31,9 +34,9 @@ export default function CustomQR({
           data,
           margin: 0,
           qrOptions: { errorCorrectionLevel: 'H' },
-          dotsOptions: { color, type: dotStyle as any },
-          cornersSquareOptions: { color, type: cornerStyle as any },
-          cornersDotOptions: { color, type: cornerStyle === 'extra-rounded' ? 'dot' : (cornerStyle as any) },
+          dotsOptions: { color, type: dotStyle },
+          cornersSquareOptions: { color, type: cornerStyle },
+          cornersDotOptions: { color, type: cornerDotStyle },
           backgroundOptions: { color: 'transparent' },
         });
         

@@ -22,9 +22,16 @@ export type NfcIconVariant =
   | 'tap_target_circle'
   | 'custom_svg';
 
-export type QrVariant = 'standard' | 'scan_corners' | 'solid_frame';
+export type QrVariant =
+  | 'standard'
+  | 'outline'
+  | 'rounded_frame'
+  | 'double_frame'
+  | 'bold_frame'
+  | 'scan_corners'
+  | 'solid_frame';
 export type QrDotStyle = 'square' | 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded';
-export type QrCornerStyle = 'square' | 'dot' | 'extra-rounded';
+export type QrCornerStyle = 'square' | 'dot' | 'rounded' | 'extra-rounded' | 'classy' | 'classy-rounded';
 
 export interface CanvasElement {
   id: string;

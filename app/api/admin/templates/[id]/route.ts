@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { customTemplates } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
-import { TEMPLATE_PRESETS } from '@/lib/template-presets';
+import { getAdminSession } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { id } = await params;
 
@@ -53,6 +56,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'super_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -118,6 +125,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'super_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const { id } = await params;
 

@@ -2,8 +2,12 @@ import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
 import { generateId, generateSlug, nowUnix } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   let body;
   try {
     body = await request.json();
@@ -46,6 +50,7 @@ export async function POST(request: NextRequest) {
         template,
         status: 'unassigned' as const,
         totalScans: 0,
+        ownerId: session.userId,
         createdAt: now,
         updatedAt: now,
       });

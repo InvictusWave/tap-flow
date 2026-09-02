@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { customTemplates } from '@/lib/schema';
 import { desc } from 'drizzle-orm';
-import { TEMPLATE_PRESETS } from '@/lib/template-presets';
 import { nanoid } from 'nanoid';
+import { getAdminSession } from '@/lib/auth';
 
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const dbTemplates = await db
       .select()
@@ -39,6 +42,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'super_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const body = await request.json();
     const { name, aspect, width, height, background, elements, thumbnail } = body;

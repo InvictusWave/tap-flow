@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import CustomQR from './CustomQR';
+import NfcIconGraphic from './NfcIconGraphic';
 import {
   CanvasElement,
   CustomTemplateData,
@@ -483,95 +484,6 @@ export default function CanvasRenderer({
     setActiveGuides([]);
   };
 
-  // Render SVG NFC Icon Variants
-  const renderNfcIcon = (el: CanvasElement) => {
-    const isDark = el.iconVariant === 'phone_outline';
-    const fill = el.color || (isDark ? '#ffffff' : '#0284c7');
-
-    switch (el.iconVariant) {
-      case 'hand_phone':
-        return (
-          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <rect x="22" y="12" width="46" height="60" rx="8" fill="#e0f2fe" stroke={fill} strokeWidth="3" />
-            <rect x="26" y="16" width="38" height="42" rx="4" fill="#ffffff" />
-            <circle cx="45" cy="64" r="3" fill={fill} />
-            {/* NFC Waves */}
-            <path d="M 68 20 A 12 12 0 0 1 68 36" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
-            <path d="M 74 14 A 20 20 0 0 1 74 42" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
-            <path d="M 80 8 A 28 28 0 0 1 80 48" fill="none" stroke={fill} strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        );
-
-      case 'circular_tap':
-        return (
-          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <circle cx="50" cy="40" r="32" fill="#ecfdf5" stroke={fill} strokeWidth="3" strokeDasharray="6 4" />
-            <circle cx="50" cy="40" r="22" fill="#ffffff" stroke={fill} strokeWidth="2.5" />
-            <circle cx="50" cy="40" r="8" fill={fill} />
-            <path d="M 50 14 L 54 8 L 46 8 Z" fill={fill} />
-            <path d="M 50 66 L 46 72 L 54 72 Z" fill={fill} />
-          </svg>
-        );
-
-      case 'phone_outline':
-        return (
-          <svg viewBox="0 0 80 110" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <rect x="10" y="8" width="60" height="94" rx="14" fill="#0f172a" stroke={fill} strokeWidth="3" />
-            <rect x="16" y="18" width="48" height="66" rx="6" fill="#1e293b" />
-            <path d="M 32 12 L 48 12" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="40" cy="93" r="3.5" fill="#64748b" />
-            <path d="M 34 45 A 8 8 0 0 1 46 45" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M 30 40 A 14 14 0 0 1 50 40" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M 26 35 A 20 20 0 0 1 54 35" fill="none" stroke={fill} strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-        );
-
-      case 'nfc_badge':
-        return (
-          <svg viewBox="0 0 80 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <rect x="8" y="8" width="64" height="64" rx="16" fill="#eff6ff" stroke={fill} strokeWidth="3" />
-            <path d="M 28 52 A 16 16 0 0 1 52 28" fill="none" stroke={fill} strokeWidth="3.5" strokeLinecap="round" />
-            <path d="M 28 42 A 8 8 0 0 1 42 28" fill="none" stroke={fill} strokeWidth="3.5" strokeLinecap="round" />
-            <circle cx="30" cy="50" r="3.5" fill={fill} />
-          </svg>
-        );
-
-      case 'waves_only':
-        return (
-          <svg viewBox="0 0 100 60" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <path d="M 35 48 A 15 15 0 0 1 35 12" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
-            <path d="M 48 54 A 25 25 0 0 1 48 6" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
-            <path d="M 61 59 A 35 35 0 0 1 61 1" fill="none" stroke={fill} strokeWidth="4" strokeLinecap="round" />
-          </svg>
-        );
-
-      case 'n_mark':
-        return (
-          <svg viewBox="0 0 24 24" className="w-full h-full pointer-events-none">
-            <path fillRule="evenodd" clipRule="evenodd" d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM8.66859 7.93767C8.64917 7.75318 8.54474 7.58024 8.3718 7.48038C8.26596 7.41928 8.14923 7.39408 8.03574 7.40102C7.91551 7.39374 7.79193 7.42249 7.682 7.4912C7.50792 7.6 7.4089 7.78346 7.4005 7.97413C6.74423 9.21292 6.4 10.5949 6.4 12C6.4 13.5096 6.79737 14.9926 7.55218 16.3C7.71787 16.587 8.08482 16.6853 8.3718 16.5196C8.65877 16.3539 8.7571 15.987 8.59141 15.7C7.94193 14.5751 7.6 13.299 7.6 12C7.6 11.0746 7.77352 10.1609 8.10815 9.30511L12.3314 16.0623C12.3508 16.2468 12.4553 16.4198 12.6282 16.5196C12.734 16.5807 12.8508 16.6059 12.9643 16.599C13.0845 16.6063 13.2081 16.5775 13.318 16.5088C13.4921 16.4 13.5911 16.2165 13.5995 16.0259C14.2558 14.7871 14.6 13.4051 14.6 12C14.6 10.4904 14.2026 9.00737 13.4478 7.7C13.2821 7.41302 12.9152 7.3147 12.6282 7.48038C12.3412 7.64607 12.2429 8.01302 12.4086 8.3C13.0581 9.42494 13.4 10.701 13.4 12C13.4 12.9254 13.2265 13.8391 12.8919 14.6949L8.66859 7.93767ZM16.0067 6.8C15.841 6.51302 15.9393 6.14607 16.2263 5.98038C16.5133 5.8147 16.8802 5.91302 17.0459 6.2C18.064 7.96342 18.6 9.96377 18.6 12C18.6 14.0362 18.064 16.0366 17.0459 17.8C16.8802 18.087 16.5133 18.1853 16.2263 18.0196C15.9393 17.8539 15.841 17.487 16.0067 17.2C16.9195 15.619 17.4 13.8256 17.4 12C17.4 10.1744 16.9195 8.381 16.0067 6.8Z" fill={fill} />
-          </svg>
-        );
-
-      case 'tap_target_circle':
-        return (
-          <svg viewBox="0 0 100 100" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <circle cx="50" cy="50" r="42" fill="none" stroke={fill} strokeWidth="3" strokeDasharray="8 6" opacity="0.6" />
-            <circle cx="50" cy="50" r="30" fill="none" stroke={fill} strokeWidth="3" />
-            <circle cx="50" cy="50" r="16" fill="#e0f2fe" stroke={fill} strokeWidth="2.5" />
-            <circle cx="50" cy="50" r="6" fill={fill} />
-          </svg>
-        );
-
-      default:
-        return (
-          <svg viewBox="0 0 100 80" className="w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <rect x="22" y="12" width="46" height="60" rx="8" fill="#e0f2fe" stroke={fill} strokeWidth="3" />
-            <circle cx="45" cy="64" r="3" fill={fill} />
-          </svg>
-        );
-    }
-  };
-
   // Render Google Star Ratings
   const renderGoogleStars = (el: CanvasElement) => {
     const starColor = el.starColor || el.color || '#FBBC05';
@@ -710,13 +622,30 @@ export default function CanvasRenderer({
             style={{
               backgroundColor: el.backgroundColor || '#ffffff',
               borderColor: el.borderColor || 'transparent',
-              borderWidth: el.borderWidth ? `${el.borderWidth}px` : 0,
+              borderWidth: 0,
               borderRadius: el.borderRadius ? `${el.borderRadius}px` : 8,
               boxShadow: el.boxShadow || 'none',
               color: el.qrDarkColor || '#000000',
             }}
-            className={`w-full h-full shadow-sm flex items-center justify-center pointer-events-none relative overflow-hidden ${el.qrVariant === 'scan_corners' ? 'p-3' : 'p-1'}`}
+            className={`w-full h-full flex items-center justify-center pointer-events-none relative overflow-hidden ${!el.qrVariant || el.qrVariant === 'standard' ? 'p-1' : 'p-3'}`}
           >
+            {/* Variant: Outline */}
+            {el.qrVariant === 'outline' && (
+              <div className="absolute inset-1 border-2 border-current rounded-md opacity-30 pointer-events-none" />
+            )}
+
+            {el.qrVariant === 'rounded_frame' && (
+              <div className="absolute inset-1 border-2 border-current rounded-2xl opacity-40 pointer-events-none" />
+            )}
+
+            {el.qrVariant === 'double_frame' && (
+              <div className="absolute inset-1 border-4 border-double border-current rounded-lg opacity-40 pointer-events-none" />
+            )}
+
+            {el.qrVariant === 'bold_frame' && (
+              <div className="absolute inset-1 border-4 border-current rounded-lg opacity-50 pointer-events-none" />
+            )}
+
             {/* Variant: Scan Corners */}
             {el.qrVariant === 'scan_corners' && (
               <>
@@ -756,7 +685,13 @@ export default function CanvasRenderer({
 
         {el.type === 'google_logo' && renderGoogleLogo(el)}
         {(el.type === 'stars' || (el.type as any) === 'google_star') && renderGoogleStars(el)}
-        {el.type === 'nfc_icon' && renderNfcIcon(el)}
+        {el.type === 'nfc_icon' && (
+          <NfcIconGraphic
+            variant={el.iconVariant}
+            color={el.color || (el.isDark ? '#ffffff' : '#0f172a')}
+            className="w-full h-full pointer-events-none"
+          />
+        )}
 
         {(el.type === 'svg' || (el.type as any) === 'svg_custom') && el.svgContent && (
           <div

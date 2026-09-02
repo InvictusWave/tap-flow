@@ -9,6 +9,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isStudioBuilder = pathname.startsWith('/admin/templates/builder');
 
+  if (pathname === '/admin/login') {
+    return <ThemeProvider>{children}</ThemeProvider>;
+  }
+
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-200">

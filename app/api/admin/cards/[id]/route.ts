@@ -1,21 +1,25 @@
 import { db } from '@/lib/db';
 import { setCachedCard, deleteCachedCard } from '@/lib/redis';
-import { cardScans, cards } from '@/lib/schema';
+import { cardScans, cards, type NewCard } from '@/lib/schema';
 import { hashPin, isValidPin, nowUnix } from '@/lib/utils';
 import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 import { isDirectGoogleReviewUrl } from '@/lib/google-review';
+import { canManageCard, getAdminSession } from '@/lib/auth';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   const card = await db.query.cards.findFirst({
     where: eq(cards.id, id),
   });
 
-  if (!card) {
+  if (!card || !canManageCard(session, card.ownerId)) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 });
   }
 
@@ -26,6 +30,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   let body;
   try {
@@ -36,14 +43,14 @@ export async function PATCH(
 
   const card = await db.query.cards.findFirst({
     where: eq(cards.id, id),
-    columns: { id: true, slug: true, businessName: true, googleReviewUrl: true },
+    columns: { id: true, slug: true, businessName: true, googleReviewUrl: true, ownerId: true },
   });
 
-  if (!card) {
+  if (!card || !canManageCard(session, card.ownerId)) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 });
   }
 
-  const updateData: Record<string, any> = {
+  const updateData: Partial<NewCard> = {
     updatedAt: nowUnix(),
   };
 
@@ -102,14 +109,17 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
 
   const card = await db.query.cards.findFirst({
     where: eq(cards.id, id),
-    columns: { id: true, slug: true },
+    columns: { id: true, slug: true, ownerId: true },
   });
 
-  if (!card) {
+  if (!card || !canManageCard(session, card.ownerId)) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 });
   }
 

@@ -5,8 +5,12 @@ import { generateId, generateSlug, hashPin, isValidPin, nowUnix } from '@/lib/ut
 import { setCachedCard } from '@/lib/redis';
 import { isDirectGoogleReviewUrl } from '@/lib/google-review';
 import { NextRequest, NextResponse } from 'next/server';
+import { cardOwnerCondition, getAdminSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
   const pageSize = Math.min(100, parseInt(searchParams.get('pageSize') ?? '20'));
@@ -15,7 +19,9 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('q')?.trim();
   const offset = (page - 1) * pageSize;
 
-  let whereConditions = [];
+  const whereConditions = [];
+  const ownerCondition = cardOwnerCondition(session);
+  if (ownerCondition) whereConditions.push(ownerCondition);
 
   if (status && status !== 'all') {
     whereConditions.push(eq(cards.status, status as 'active' | 'unassigned'));
@@ -77,6 +83,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   let body;
   try {
     body = await request.json();
@@ -84,9 +93,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  let { slug, businessName, googleReviewUrl, pin, location, template } = body;
-
-  slug = (slug || generateSlug(8)).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const { slug: rawSlug, businessName, googleReviewUrl, pin, location, template } = body;
+  const slug = (rawSlug || generateSlug(8)).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
   if (slug.length < 3) {
     return NextResponse.json({ error: 'Slug minimal 3 karakter.' }, { status: 400 });
@@ -130,6 +138,7 @@ export async function POST(request: NextRequest) {
     template: template || 'premium_black',
     status: status as 'active' | 'unassigned',
     totalScans: 0,
+    ownerId: session.userId,
     createdAt: now,
     updatedAt: now,
   };

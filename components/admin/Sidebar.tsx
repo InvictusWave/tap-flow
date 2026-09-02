@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LogoutButton from '@/app/admin/LogoutButton';
 import {
@@ -14,6 +14,7 @@ import {
   List,
   X,
   Lightning,
+  UsersThree,
 } from '@phosphor-icons/react';
 
 const navItems = [
@@ -38,17 +39,32 @@ const navItems = [
     href: '/admin/templates/builder',
     icon: <PaintBrushBroad size={20} weight="duotone" />,
     badge: 'Studio',
+    superOnly: true,
   },
   {
     label: 'Galeri Desain',
     href: '/admin/templates',
     icon: <ImageIcon size={20} weight="duotone" />,
+    superOnly: true,
+  },
+  {
+    label: 'Manajemen Admin',
+    href: '/admin/admins',
+    icon: <UsersThree size={20} weight="duotone" />,
+    superOnly: true,
   },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; role: 'super_admin' | 'admin' } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/auth')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setUser(data?.user ?? null));
+  }, []);
 
   // Precise route matching helper to avoid parent/child overlapping active states
   const isItemActive = (href: string) => {
@@ -109,7 +125,7 @@ export default function Sidebar() {
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1.5">
-            {navItems.map((item) => {
+            {navItems.filter((item) => !item.superOnly || user?.role === 'super_admin').map((item) => {
               const isActive = isItemActive(item.href);
 
               return (
@@ -152,11 +168,13 @@ export default function Sidebar() {
           <div className="pt-2 flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300">
-                A
+                {user?.name?.charAt(0).toUpperCase() || 'A'}
               </div>
               <div className="text-xs">
-                <p className="font-medium text-slate-800 dark:text-slate-200">Admin</p>
-                <p className="text-[10px] text-slate-400">Authenticated</p>
+                <p className="font-medium text-slate-800 dark:text-slate-200">{user?.name || 'Admin'}</p>
+                <p className="text-[10px] text-slate-400">
+                  {user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                </p>
               </div>
             </div>
             <LogoutButton />

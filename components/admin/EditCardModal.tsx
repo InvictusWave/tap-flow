@@ -39,9 +39,9 @@ export default function EditCardModal({ card, onClose, onSaved }: EditCardModalP
   useEffect(() => {
     setAppUrl(window.location.origin);
     fetch('/api/admin/templates')
-      .then((res) => res.json())
+      .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        if (data.templates) {
+        if (data?.templates) {
           setCustomTemplatesList(data.templates.filter((t: any) => t.isCustom));
         }
       })

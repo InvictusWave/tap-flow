@@ -1,5 +1,5 @@
 import { createClient } from '@libsql/client/web';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
 const envPath = resolve(process.cwd(), '.env.local');
@@ -9,7 +9,7 @@ if (existsSync(envPath)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     const [key, ...values] = trimmed.split('=');
-    if (key && values.length > 0) {
+    if (key && values.length > 0 && !process.env[key.trim()]) {
       process.env[key.trim()] = values.join('=').trim().replace(/^["'](.*)["']$/, '$1');
     }
   }
@@ -26,18 +26,28 @@ if (!url) {
 const client = createClient({ url, authToken });
 
 async function run() {
-  console.log('Connecting to Turso via HTTP web client and executing migration...');
-  const sqlFile = resolve(process.cwd(), 'drizzle/0000_init.sql');
-  const sql = readFileSync(sqlFile, 'utf8');
+  console.log('Connecting to database and executing migrations...');
+  const migrationDir = resolve(process.cwd(), 'drizzle');
+  const files = readdirSync(migrationDir).filter((file) => file.endsWith('.sql')).sort();
 
-  const statements = sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  for (const file of files) {
+    const statements = readFileSync(resolve(migrationDir, file), 'utf8')
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-  for (const stmt of statements) {
-    console.log(`Executing: ${stmt.slice(0, 50)}...`);
-    await client.execute(stmt);
+    for (const stmt of statements) {
+      if (stmt.startsWith('ALTER TABLE `cards` ADD COLUMN `owner_id`')) {
+        const columns = await client.execute('PRAGMA table_info(cards)');
+        if (columns.rows.some((row) => row.name === 'owner_id')) continue;
+      }
+      if (stmt.startsWith('ALTER TABLE `admin_users` ADD COLUMN `expires_at`')) {
+        const columns = await client.execute('PRAGMA table_info(admin_users)');
+        if (columns.rows.some((row) => row.name === 'expires_at')) continue;
+      }
+      console.log(`Executing ${file}: ${stmt.slice(0, 50)}...`);
+      await client.execute(stmt);
+    }
   }
 
   console.log('✅ Tables created successfully on Turso database!');

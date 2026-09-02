@@ -1,7 +1,13 @@
 'use client';
 
 import React from 'react';
-import { CanvasElement, NfcIconVariant } from '@/types/template-builder';
+import {
+  CanvasElement,
+  NfcIconVariant,
+  QrCornerStyle,
+  QrDotStyle,
+  QrVariant,
+} from '@/types/template-builder';
 import {
   Copy,
   Trash,
@@ -18,18 +24,13 @@ import {
   TextAlignLeft,
   TextAlignCenter,
   TextAlignRight,
-  DeviceMobile,
-  ArrowsClockwise,
-  Phone,
-  Broadcast,
-  WifiHigh,
-  Target,
   Code,
   Plus,
   Minus,
   TextT,
   Palette,
 } from '@phosphor-icons/react';
+import NfcIconGraphic from './NfcIconGraphic';
 
 interface PropertiesPanelProps {
   element: CanvasElement | null;
@@ -74,38 +75,66 @@ const NFC_LIBRARY: { id: NfcIconVariant; label: string; icon: React.ReactNode }[
   {
     id: 'hand_phone',
     label: 'Hand & Radar Waves',
-    icon: <DeviceMobile size={18} weight="duotone" className="text-blue-500" />,
+    icon: <NfcIconGraphic variant="hand_phone" className="w-5 h-5 text-blue-500" />,
   },
   {
     id: 'circular_tap',
     label: 'Circular Arrows (eTTa)',
-    icon: <ArrowsClockwise size={18} weight="duotone" className="text-emerald-500" />,
+    icon: <NfcIconGraphic variant="circular_tap" className="w-5 h-5 text-emerald-500" />,
   },
   {
     id: 'phone_outline',
     label: 'Phone Outline Radar',
-    icon: <Phone size={18} weight="duotone" className="text-purple-500" />,
+    icon: <NfcIconGraphic variant="phone_outline" className="w-5 h-5 text-purple-500" />,
   },
   {
     id: 'nfc_badge',
     label: 'Corner Wave Badge',
-    icon: <Broadcast size={18} weight="duotone" className="text-indigo-500" />,
+    icon: <NfcIconGraphic variant="nfc_badge" className="w-5 h-5 text-indigo-500" />,
   },
   {
     id: 'waves_only',
     label: 'Pure Signal Waves',
-    icon: <WifiHigh size={18} weight="duotone" className="text-amber-500" />,
+    icon: <NfcIconGraphic variant="waves_only" className="w-5 h-5 text-amber-500" />,
   },
   {
     id: 'n_mark',
     label: 'N-Mark NFC',
-    icon: <Broadcast size={18} weight="fill" className="text-sky-500" />,
+    icon: <NfcIconGraphic variant="n_mark" className="w-5 h-5 text-sky-500" />,
   },
   {
     id: 'tap_target_circle',
     label: 'TAP HERE Circle Target',
-    icon: <Target size={18} weight="duotone" className="text-rose-500" />,
+    icon: <NfcIconGraphic variant="tap_target_circle" className="w-5 h-5 text-rose-500" />,
   },
+];
+
+const QR_VARIANTS: { value: QrVariant; label: string }[] = [
+  { value: 'standard', label: 'Standard (Tanpa Frame)' },
+  { value: 'outline', label: 'Outline' },
+  { value: 'rounded_frame', label: 'Rounded Frame' },
+  { value: 'double_frame', label: 'Double Frame' },
+  { value: 'bold_frame', label: 'Bold Frame' },
+  { value: 'scan_corners', label: 'Scan Corners' },
+  { value: 'solid_frame', label: 'NFC Center' },
+];
+
+const QR_DOT_STYLES: { value: QrDotStyle; label: string }[] = [
+  { value: 'square', label: 'Square' },
+  { value: 'dots', label: 'Dots' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'extra-rounded', label: 'Extra Rounded' },
+  { value: 'classy', label: 'Classy' },
+  { value: 'classy-rounded', label: 'Classy Rounded' },
+];
+
+const QR_CORNER_STYLES: { value: QrCornerStyle; label: string }[] = [
+  { value: 'square', label: 'Square' },
+  { value: 'dot', label: 'Dot' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'extra-rounded', label: 'Extra Rounded' },
+  { value: 'classy', label: 'Classy' },
+  { value: 'classy-rounded', label: 'Classy Rounded' },
 ];
 
 export default function PropertiesPanel({
@@ -936,6 +965,56 @@ export default function PropertiesPanel({
                 className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* QR CODE STYLE                                                             */}
+      {/* ========================================================================= */}
+      {element.type === 'qr' && (
+        <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+            Model QR Code
+          </span>
+
+          <div>
+            <label className="text-xs font-semibold block mb-1">Frame</label>
+            <select
+              value={element.qrVariant || 'standard'}
+              onChange={(e) => onUpdateElement(element.id, { qrVariant: e.target.value as QrVariant })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+            >
+              {QR_VARIANTS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold block mb-1">Bentuk Modul</label>
+            <select
+              value={element.qrDotStyle || 'square'}
+              onChange={(e) => onUpdateElement(element.id, { qrDotStyle: e.target.value as QrDotStyle })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+            >
+              {QR_DOT_STYLES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold block mb-1">Bentuk Sudut</label>
+            <select
+              value={element.qrCornerStyle || 'square'}
+              onChange={(e) => onUpdateElement(element.id, { qrCornerStyle: e.target.value as QrCornerStyle })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+            >
+              {QR_CORNER_STYLES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}

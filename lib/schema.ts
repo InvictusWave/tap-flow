@@ -1,6 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+export const adminUsers = sqliteTable('admin_users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  role: text('role', { enum: ['super_admin', 'admin'] }).notNull().default('admin'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  expiresAt: integer('expires_at'),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+});
+
 export const cards = sqliteTable('cards', {
   id: text('id').primaryKey(),
   slug: text('slug').notNull().unique(),
@@ -13,6 +24,7 @@ export const cards = sqliteTable('cards', {
     .notNull()
     .default('unassigned'),
   totalScans: integer('total_scans').notNull().default(0),
+  ownerId: text('owner_id').references(() => adminUsers.id),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch())`),
@@ -57,3 +69,5 @@ export type CardScan = typeof cardScans.$inferSelect;
 export type NewCardScan = typeof cardScans.$inferInsert;
 export type CustomTemplate = typeof customTemplates.$inferSelect;
 export type NewCustomTemplate = typeof customTemplates.$inferInsert;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type AdminRole = AdminUser['role'];

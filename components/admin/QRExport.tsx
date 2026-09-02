@@ -32,8 +32,8 @@ export default function QRExport({ cards, appUrl, onClose }: Props) {
 
   useEffect(() => {
     fetch('/api/admin/templates')
-      .then((res) => res.json())
-      .then((data) => setCustomTemplatesList(data.templates || []))
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setCustomTemplatesList(data?.templates || []))
       .catch(console.error);
   }, []);
 

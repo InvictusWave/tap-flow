@@ -2,7 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/schema';
-import { count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
+import { cardOwnerCondition, getAdminSession } from '@/lib/auth';
 import CardTable from '@/components/admin/CardTable';
 import {
   CreditCard,
@@ -17,16 +19,20 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
+  const session = await getAdminSession();
+  if (!session) redirect('/admin/login');
+  const ownerCondition = cardOwnerCondition(session);
+
   const [
     [{ total }],
     [{ active }],
     [{ unassigned }],
     [{ totalScans }],
   ] = await Promise.all([
-    db.select({ total: count() }).from(cards),
-    db.select({ active: count() }).from(cards).where(eq(cards.status, 'active')),
-    db.select({ unassigned: count() }).from(cards).where(eq(cards.status, 'unassigned')),
-    db.select({ totalScans: sql<number>`SUM(total_scans)` }).from(cards),
+    db.select({ total: count() }).from(cards).where(ownerCondition),
+    db.select({ active: count() }).from(cards).where(and(eq(cards.status, 'active'), ownerCondition)),
+    db.select({ unassigned: count() }).from(cards).where(and(eq(cards.status, 'unassigned'), ownerCondition)),
+    db.select({ totalScans: sql<number>`SUM(total_scans)` }).from(cards).where(ownerCondition),
   ]);
 
   const stats = {
@@ -58,13 +64,15 @@ export default async function AdminDashboardPage() {
             <span>Buat Kartu Baru</span>
           </Link>
 
-          <Link
-            href="/admin/templates"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors shadow-xs"
-          >
-            <PaintBrushBroad size={16} weight="bold" />
-            <span>Galeri Desain</span>
-          </Link>
+          {session.role === 'super_admin' && (
+            <Link
+              href="/admin/templates"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors shadow-xs"
+            >
+              <PaintBrushBroad size={16} weight="bold" />
+              <span>Galeri Desain</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -139,7 +147,7 @@ export default async function AdminDashboardPage() {
           </div>
         </Link>
 
-        <Link
+        {session.role === 'super_admin' && <Link
           href="/admin/templates"
           className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-blue-500 dark:hover:border-blue-500 transition-all flex items-center justify-between"
         >
@@ -157,7 +165,7 @@ export default async function AdminDashboardPage() {
           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center group-hover:translate-x-1 transition-transform">
             <ArrowRight size={20} weight="bold" />
           </div>
-        </Link>
+        </Link>}
       </div>
 
       {/* Main Table */}

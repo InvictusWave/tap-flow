@@ -1,3 +1,16 @@
+CREATE TABLE IF NOT EXISTS `admin_users` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`email` text NOT NULL,
+	`password_hash` text NOT NULL,
+	`role` text DEFAULT 'admin' NOT NULL,
+	`active` integer DEFAULT true NOT NULL,
+	`expires_at` integer,
+	`created_at` integer DEFAULT (unixepoch()) NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS `admin_users_email_unique` ON `admin_users` (`email`);
+
 CREATE TABLE IF NOT EXISTS `cards` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
@@ -8,14 +21,15 @@ CREATE TABLE IF NOT EXISTS `cards` (
 	`template` text DEFAULT 'premium_black',
 	`status` text DEFAULT 'unassigned' NOT NULL,
 	`total_scans` integer DEFAULT 0 NOT NULL,
+	`owner_id` text,
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
-	`updated_at` integer DEFAULT (unixepoch()) NOT NULL
+	`updated_at` integer DEFAULT (unixepoch()) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `admin_users`(`id`) ON UPDATE no action ON DELETE no action
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS `cards_slug_unique` ON `cards` (`slug`);
 CREATE INDEX IF NOT EXISTS `idx_cards_slug` ON `cards` (`slug`);
 CREATE INDEX IF NOT EXISTS `idx_cards_status` ON `cards` (`status`);
-
 CREATE TABLE IF NOT EXISTS `card_scans` (
 	`id` text PRIMARY KEY NOT NULL,
 	`card_id` text NOT NULL,

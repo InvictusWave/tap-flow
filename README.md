@@ -105,8 +105,12 @@ vercel env add TURSO_AUTH_TOKEN
 vercel env add UPSTASH_REDIS_REST_URL
 vercel env add UPSTASH_REDIS_REST_TOKEN
 vercel env add ADMIN_PASSWORD
+vercel env add SUPER_ADMIN_EMAIL
+vercel env add ADMIN_SESSION_SECRET
 vercel env add NEXT_PUBLIC_APP_URL
 ```
+
+Jalankan `npm run db:push` satu kali setelah deploy untuk menambahkan tabel admin dan kolom pemilik kartu. Login awal memakai `SUPER_ADMIN_EMAIL` dan `SUPER_ADMIN_PASSWORD` (password akan fallback ke `ADMIN_PASSWORD`).
 
 ## Panduan NFC (NTAG213)
 

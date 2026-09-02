@@ -62,8 +62,8 @@ export default function CardTable({ standalone = false }: { standalone?: boolean
 
   useEffect(() => {
     fetch('/api/admin/templates')
-      .then(res => res.json())
-      .then(data => setTemplates(data.templates || []))
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setTemplates(data?.templates || []))
       .catch(console.error);
   }, []);
 

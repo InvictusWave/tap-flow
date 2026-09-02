@@ -12,14 +12,9 @@ import {
   UploadSimple,
   Shapes,
   PaintBucket,
-  DeviceMobile,
-  ArrowsClockwise,
-  Phone,
-  Broadcast,
-  WifiHigh,
-  Target,
   Code,
 } from '@phosphor-icons/react';
+import NfcIconGraphic from './NfcIconGraphic';
 
 interface LeftSidebarProps {
   onAddElement: (element: CanvasElement) => void;
@@ -75,8 +70,11 @@ export default function LeftSidebar({
       zIndex: 10,
       borderRadius: 10,
       borderColor: '#cbd5e1',
-      borderWidth: 1,
+      borderWidth: 0,
       backgroundColor: '#ffffff',
+      qrVariant: 'standard',
+      qrDotStyle: 'square',
+      qrCornerStyle: 'square',
     });
   };
 
@@ -405,11 +403,11 @@ export default function LeftSidebar({
 
               <div className="space-y-2">
                 <button
-                  onClick={() => handleAddNfcIcon('hand_phone', false, 110, 80)}
+                  onClick={() => handleAddNfcIcon('hand_phone', false, 84, 84)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                    <DeviceMobile size={20} weight="duotone" />
+                    <NfcIconGraphic variant="hand_phone" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-xs">Hand & Phone Waves</p>
@@ -418,11 +416,11 @@ export default function LeftSidebar({
                 </button>
 
                 <button
-                  onClick={() => handleAddNfcIcon('circular_tap', false, 100, 80)}
+                  onClick={() => handleAddNfcIcon('circular_tap', false, 84, 84)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                    <ArrowsClockwise size={20} weight="duotone" />
+                    <NfcIconGraphic variant="circular_tap" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-xs">Circular Tap Arrows</p>
@@ -431,24 +429,24 @@ export default function LeftSidebar({
                 </button>
 
                 <button
-                  onClick={() => handleAddNfcIcon('phone_outline', true, 80, 110)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-slate-900 text-white flex items-center gap-3 transition-colors"
+                  onClick={() => handleAddNfcIcon('phone_outline', false, 84, 84)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center text-slate-200 shrink-0">
-                    <Phone size={20} weight="duotone" />
+                  <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                    <NfcIconGraphic variant="phone_outline" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
-                    <p className="font-bold text-xs">Phone Outline (Dark)</p>
-                    <p className="text-[10px] text-slate-400">Akrilik hitam glossy</p>
+                    <p className="font-bold text-xs">Phone NFC Outline</p>
+                    <p className="text-[10px] text-slate-500">Ikon ponsel minimalis</p>
                   </div>
                 </button>
 
                 <button
-                  onClick={() => handleAddNfcIcon('nfc_badge', false, 60, 50)}
+                  onClick={() => handleAddNfcIcon('nfc_badge', false, 84, 84)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                    <Broadcast size={20} weight="duotone" />
+                    <NfcIconGraphic variant="nfc_badge" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-xs">Corner NFC Wave Badge</p>
@@ -457,11 +455,11 @@ export default function LeftSidebar({
                 </button>
 
                 <button
-                  onClick={() => handleAddNfcIcon('waves_only', false, 70, 70)}
+                  onClick={() => handleAddNfcIcon('waves_only', false, 84, 84)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                    <WifiHigh size={20} weight="duotone" />
+                    <NfcIconGraphic variant="waves_only" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-xs">Pure Signal Radar Waves</p>
@@ -470,11 +468,24 @@ export default function LeftSidebar({
                 </button>
 
                 <button
-                  onClick={() => handleAddNfcIcon('tap_target_circle', false, 90, 90)}
+                  onClick={() => handleAddNfcIcon('n_mark', false, 80, 80)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                    <NfcIconGraphic variant="n_mark" className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-xs">N-Mark NFC Circle</p>
+                    <p className="text-[10px] text-slate-500">Leonid Tsvetkov · CC Attribution</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleAddNfcIcon('tap_target_circle', false, 84, 84)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-800 flex items-center gap-3 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
-                    <Target size={20} weight="duotone" />
+                    <NfcIconGraphic variant="tap_target_circle" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-xs">TAP HERE Circle Target</p>

@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ADMIN_SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const session = await verifySessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-  // Protect /admin routes (except /admin/login)
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const session = request.cookies.get('admin_session')?.value;
-    if (!session || session !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.redirect(new URL('/admin/login', request.url));
-    }
+  if (pathname === '/admin/login') {
+    return session ? NextResponse.redirect(new URL('/admin', request.url)) : NextResponse.next();
+  }
+
+  if (!session) {
+    return NextResponse.redirect(new URL('/admin/login', request.url));
+  }
+
+  if (
+    session.role !== 'super_admin' &&
+    (pathname.startsWith('/admin/templates') || pathname.startsWith('/admin/admins'))
+  ) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   return NextResponse.next();

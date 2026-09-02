@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import CanvasRenderer from '@/components/admin/builder/CanvasRenderer';
@@ -22,7 +22,7 @@ import {
   CheckCircle,
 } from '@phosphor-icons/react';
 
-export default function CreateCardPage() {
+function CreateCardContent() {
   type TemplateOption = CustomTemplateData & { isCustom?: boolean };
   type CreatedCard = {
     id: string;
@@ -729,5 +729,13 @@ export default function CreateCardPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CreateCardPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateCardContent />
+    </Suspense>
   );
 }
